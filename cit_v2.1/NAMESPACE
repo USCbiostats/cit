@@ -1,0 +1,8 @@
+useDynLib(cit,.registration=TRUE)
+
+export(
+	## add new functions separated by comma when needed
+	linreg, cit.cp, cit.bp, fdr.od, fdr.cit, iuq, fdr.q.para, fdr.q.perm
+)
+
+importFrom("stats", "anova", "glm", "lm", "na.exclude", "pf", "pnorm", "qnorm", "resid", "sd", "var")
