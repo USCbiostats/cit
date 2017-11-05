@@ -471,33 +471,6 @@ fdr.od = function ( obsp, permp, pnm, ntests, thres, cl = 0.95, od = NA ) {
 } # End fdr.od
 
 
-# Millstein FDR
-fdr.q.para = function( pvals ){
-	# set q.value to minimum FDR for that p-value or larger p-values
-	m = length( pvals )
-	new.order = order(pvals)
-	po = pvals[new.order]
-	qvals = rep(NA, m)
-	for( tst in 1:m ){
-		thresh = po[ tst ]
-		if( thresh > .99 ) qvals[ tst ] = 1
-		if( thresh < 1 ){
-			S = sum( pvals <= thresh )
-			Sp = m * thresh
-			prod1 = Sp / S
-			prod2 = (1 - S/m) / (1 - Sp/m) 
-			prod2 = ifelse(is.na(prod2), .5, prod2)
-			prod2 = ifelse(prod2 < .5, .5, prod2)
-			qvals[ tst ] = prod1 * prod2
-		} # End if thresh
-		qvals[ 1:tst ] = ifelse( qvals[ 1:tst ] > qvals[ tst ], qvals[ tst ], qvals[ 1:tst ] )
-	} # End for tst
-	qvals1 = qvals[order(new.order)]
-	qvals1 = ifelse(qvals1 > 1, 1, qvals1)
-	return( qvals1 )
-} # End fdrpara
-
-
 # function to combine q-values into an omnibus q-value that represents the intersection of alternative hypotheses and the union of null hypotheses
 iuq = function( qvec ){
 	qvec1 = 1 - qvec
