@@ -572,6 +572,10 @@ fdr.cit = function( cit.perm.list, cl=.95, c1=NA ){
 	
 	fdrmat[ , pnms  ] = obs[, pnms ]
 	
+	op = order(fdrmat[ , "p.raw" ], decreasing = TRUE)
+	ro = order(op)
+	fdrmat[, "q.cit" ] = cummin(fdrmat[op, "q.cit" ])[ro]
+	
 	return( fdrmat )
 } # End fdr.cit
 
