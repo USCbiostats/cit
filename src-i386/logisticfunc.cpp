@@ -52,8 +52,12 @@ suint stride,suint params,int & count,int MAX){
     chiSq = logL = 0.;
     double *U = new double[params];
     double *infoMatrix = new double[params*params]; 
-    memset(U,0,sizeof(U));
-    memset(infoMatrix,0,sizeof(infoMatrix));
+    for(uint j=0;j<params;++j){
+        U[ j ] = 0;
+    }
+    for(uint j=0;j<(params*params);++j){
+        infoMatrix[ j ] = 0;
+    }
     for(uint i=0;i<iObsSampleSize;++i){
         double betaX = 0.;
         uint col = i*stride;
