@@ -2,21 +2,20 @@
 # Program Name: C_CIT_V13_CI.R
 # Purpose: R CIT functions, some including C++ routines
 # Programmer: Joshua Millstein
-# Date: 11/5/17
+# Date: 12/11/17
 #
 # Input:
 #   L: vector or nxp matrix of continuous instrumental variables
 #   G: vector or nxp matrix of candidate causal mediators.
 #   T: vector or nxp matrix of traits
 #   C: vector or nxp matrix of traits
-#   trios: A matrix or dataframe of three columns. Each row represents a planned test to be conducted 
-#          and the number of rows is equal to the total number of tests. The first column is an
-#          indicator for the column in L, the second is an indicator for the column in G, and the third
-#          is an indicator for the column in T.
+#   perm.index is n x n.perm matrix of random indices for the permutations, e.g., each column is a random permutation 
+#		of 1:n, where n is the number of samples and n.perm the number of permutations. For each permutation, each  
+#		column perm.index will be applied in therandomization approach for each component. Perm.index will preserve the 
+#		observed dependencies between tests in the permuted results allowing more accurate FDR confidence intervals to be computed.
 #
 # Updates: Allow permutation index to be added to allow dependencies between tests to be accounted for.
 # If trios == NULL, then L is matrix of instrumental variables to be simultaneously included in the model, o.w. L is matrix where a single variable will be indicated by each row of trios.
-# install.packages("/Users/iTeams/Dropbox/scripts/CIT/Rpackage/cit_2.1.tar.gz", repos=NULL)
 
 ##### Function to compute F test given continuous outcome and full vs reduced sets of covariates
 linreg = function( nms.full, nms.redu=NULL, nm.y, mydat ){
@@ -304,15 +303,7 @@ cit.cp = function( L, G, T, C=NULL, n.resampl=50, n.perm=0, perm.index=NULL, rse
 } # End function cit.cp
 
 
-# CIT for binary outcome and permutation results, null is the empirical distribution for pvalues 1-3 and independence for p-value 4.
-# Input:
-#   L: vector or nxp matrix of continuous instrumental variables. If trios not equal to NULL then L includes a single instrumental variable for each test. If trios=NULL then L can be a vector, matrix or dataframe representing just one instrumental variable or alternatively a set of instrumental variables that jointly may be mediated by G.
-#   G: vector or nxp matrix (if trios=NULL then G must be a single variable) of candidate causal mediators.
-#   T: vector or nxp matrix of traits (if trios=NULL then T must be a single variable)
-#   trios: A matrix or dataframe of three columns. Each row represents a planned test to be conducted 
-#          and the number of rows is equal to the total number of tests. The first column is an
-#          indicator for the column in L, the second is an indicator for the column in G, and the third
-#          is an indicator for the column in T. If trios not equal to NULL, then L, G, and T must be matrices or dataframes all of the same dimensions.
+# CIT for binary outcome and permutation results. 
 
 cit.bp = function( L, G, T, C=NULL, maxit=10000, n.perm=0, perm.index=NULL, rseed=NULL ) {
 	
@@ -608,6 +599,7 @@ fdr.cit = function( cit.perm.list, cl=.95, c1=NA ){
 	
 	fdrmat[ , pnms  ] = obs[, pnms ]
 	
+	# p.cit
 	op = order(fdrmat[ , "p.cit" ])
 	for(tst in 1:nrow(fdrmat)){
 		aa = fdrmat[ op[1:tst], "q.cit" ] > fdrmat[ op[tst], "q.cit" ]
@@ -616,8 +608,49 @@ fdr.cit = function( cit.perm.list, cl=.95, c1=NA ){
 		fdrmat[ op[1:tst], "q.cit.ul" ] = ifelse( aa, fdrmat[ op[tst], "q.cit.ul" ], fdrmat[ op[1:tst], "q.cit.ul" ] )
 	}
 	
+	# p_TassocL
+	op = order(fdrmat[ , "p_TassocL" ])
+	for(tst in 1:nrow(fdrmat)){
+		aa = fdrmat[ op[1:tst], "q.TaL" ] > fdrmat[ op[tst], "q.TaL" ]
+		fdrmat[ op[1:tst], "q.TaL" ] = ifelse( aa, fdrmat[ op[tst], "q.TaL" ], fdrmat[ op[1:tst], "q.TaL" ] )
+		fdrmat[ op[1:tst], "q.ll.TaL" ] = ifelse( aa, fdrmat[ op[tst], "q.ll.TaL" ], fdrmat[ op[1:tst], "q.ll.TaL" ] )
+		fdrmat[ op[1:tst], "q.ul.TaL" ] = ifelse( aa, fdrmat[ op[tst], "q.ul.TaL" ], fdrmat[ op[1:tst], "q.ul.TaL" ] )
+	}
+	
+	# p_TassocGgvnL
+	op = order(fdrmat[ , "p_TassocGgvnL" ])
+	for(tst in 1:nrow(fdrmat)){
+		aa = fdrmat[ op[1:tst], "q.TaGgvL" ] > fdrmat[ op[tst], "q.TaGgvL" ]
+		fdrmat[ op[1:tst], "q.TaGgvL" ] = ifelse( aa, fdrmat[ op[tst], "q.TaGgvL" ], fdrmat[ op[1:tst], "q.TaGgvL" ] )
+		fdrmat[ op[1:tst], "q.ll.TaGgvL" ] = ifelse( aa, fdrmat[ op[tst], "q.ll.TaGgvL" ], fdrmat[ op[1:tst], "q.ll.TaGgvL" ] )
+		fdrmat[ op[1:tst], "q.ul.TaGgvL" ] = ifelse( aa, fdrmat[ op[tst], "q.ul.TaGgvL" ], fdrmat[ op[1:tst], "q.ul.TaGgvL" ] )
+	}
+	
+	# p_GassocLgvnT
+	op = order(fdrmat[ , "p_GassocLgvnT" ])
+	for(tst in 1:nrow(fdrmat)){
+		aa = fdrmat[ op[1:tst], "q.GaLgvT" ] > fdrmat[ op[tst], "q.GaLgvT" ]
+		fdrmat[ op[1:tst], "q.GaLgvT" ] = ifelse( aa, fdrmat[ op[tst], "q.GaLgvT" ], fdrmat[ op[1:tst], "q.GaLgvT" ] )
+		fdrmat[ op[1:tst], "q.ll.GaLgvT" ] = ifelse( aa, fdrmat[ op[tst], "q.ll.GaLgvT" ], fdrmat[ op[1:tst], "q.ll.GaLgvT" ] )
+		fdrmat[ op[1:tst], "q.ul.GaLgvT" ] = ifelse( aa, fdrmat[ op[tst], "q.ul.GaLgvT" ], fdrmat[ op[1:tst], "q.ul.GaLgvT" ] )
+	}
+	
+	# p_LindTgvnG
+	op = order(fdrmat[ , "p_LindTgvnG" ])
+	for(tst in 1:nrow(fdrmat)){
+		aa = fdrmat[ op[1:tst], "q.LiTgvG" ] > fdrmat[ op[tst], "q.LiTgvG" ]
+		fdrmat[ op[1:tst], "q.LiTgvG" ] = ifelse( aa, fdrmat[ op[tst], "q.LiTgvG" ], fdrmat[ op[1:tst], "q.LiTgvG" ] )
+		fdrmat[ op[1:tst], "q.ll.LiTgvG" ] = ifelse( aa, fdrmat[ op[tst], "q.ll.LiTgvG" ], fdrmat[ op[1:tst], "q.ll.LiTgvG" ] )
+		fdrmat[ op[1:tst], "q.ul.LiTgvG" ] = ifelse( aa, fdrmat[ op[tst], "q.ul.LiTgvG" ], fdrmat[ op[1:tst], "q.ul.LiTgvG" ] )
+	}
+	
 	return( fdrmat )
 } # End fdr.cit
+
+
+
+
+
 
 
 
