@@ -591,22 +591,9 @@ fdr.cit = function( cit.perm.list, cl=.95, c1=NA ){
 				fdrmat[ tst, pnm.lst[[ pind ]]  ] = fdr.od(obs[, pname], perml, pname, nrow(obs), cutoff, cl=cl, od=c1)[ 1:3 ]
 			} else fdrmat[ tst, pnm.lst[[ pind ]]  ] = c(1,1,1) 
 		}
-		fdrmat[ tst, "p.cit"  ] = obs[ tst, "p_cit" ]
-		fdrmat[ tst, "q.cit"  ] = iuq( fdrmat[ tst, c( "q.TaL", "q.TaGgvL", "q.GaLgvT", "q.LiTgvG" ) ] )
-		fdrmat[ tst, "q.cit.ll"  ] = iuq( fdrmat[ tst, c( "q.ll.TaL", "q.ll.TaGgvL", "q.ll.GaLgvT", "q.ll.LiTgvG" ) ] )
-		fdrmat[ tst, "q.cit.ul"  ] = iuq( fdrmat[ tst, c( "q.ul.TaL", "q.ul.TaGgvL", "q.ul.GaLgvT", "q.ul.LiTgvG" ) ] )
 	}
 	
 	fdrmat[ , pnms  ] = obs[, pnms ]
-	
-	# p.cit
-	op = order(fdrmat[ , "p.cit" ])
-	for(tst in 1:nrow(fdrmat)){
-		aa = fdrmat[ op[1:tst], "q.cit" ] > fdrmat[ op[tst], "q.cit" ]
-		fdrmat[ op[1:tst], "q.cit" ] = ifelse( aa, fdrmat[ op[tst], "q.cit" ], fdrmat[ op[1:tst], "q.cit" ] )
-		fdrmat[ op[1:tst], "q.cit.ll" ] = ifelse( aa, fdrmat[ op[tst], "q.cit.ll" ], fdrmat[ op[1:tst], "q.cit.ll" ] )
-		fdrmat[ op[1:tst], "q.cit.ul" ] = ifelse( aa, fdrmat[ op[tst], "q.cit.ul" ], fdrmat[ op[1:tst], "q.cit.ul" ] )
-	}
 	
 	# p_TassocL
 	op = order(fdrmat[ , "p_TassocL" ])
@@ -644,8 +631,25 @@ fdr.cit = function( cit.perm.list, cl=.95, c1=NA ){
 		fdrmat[ op[1:tst], "q.ul.LiTgvG" ] = ifelse( aa, fdrmat[ op[tst], "q.ul.LiTgvG" ], fdrmat[ op[1:tst], "q.ul.LiTgvG" ] )
 	}
 	
+	# p.cit
+	for( tst in 1:nrow(obs) ){
+		fdrmat[ tst, "p.cit"  ] = obs[ tst, "p_cit" ]
+		fdrmat[ tst, "q.cit"  ] = iuq( fdrmat[ tst, c( "q.TaL", "q.TaGgvL", "q.GaLgvT", "q.LiTgvG" ) ] )
+		fdrmat[ tst, "q.cit.ll"  ] = iuq( fdrmat[ tst, c( "q.ll.TaL", "q.ll.TaGgvL", "q.ll.GaLgvT", "q.ll.LiTgvG" ) ] )
+		fdrmat[ tst, "q.cit.ul"  ] = iuq( fdrmat[ tst, c( "q.ul.TaL", "q.ul.TaGgvL", "q.ul.GaLgvT", "q.ul.LiTgvG" ) ] )
+	}
+	
+	op = order(fdrmat[ , "p.cit" ])
+	for(tst in 1:nrow(fdrmat)){
+		aa = fdrmat[ op[1:tst], "q.cit" ] > fdrmat[ op[tst], "q.cit" ]
+		fdrmat[ op[1:tst], "q.cit" ] = ifelse( aa, fdrmat[ op[tst], "q.cit" ], fdrmat[ op[1:tst], "q.cit" ] )
+		fdrmat[ op[1:tst], "q.cit.ll" ] = ifelse( aa, fdrmat[ op[tst], "q.cit.ll" ], fdrmat[ op[1:tst], "q.cit.ll" ] )
+		fdrmat[ op[1:tst], "q.cit.ul" ] = ifelse( aa, fdrmat[ op[tst], "q.cit.ul" ], fdrmat[ op[1:tst], "q.cit.ul" ] )
+	}
+	
 	return( fdrmat )
 } # End fdr.cit
+
 
 
 
