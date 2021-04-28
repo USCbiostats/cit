@@ -84,6 +84,12 @@ suint stride,suint params,int & count,int MAX){
     }
     double *infoMatDecomp = new double[params*params];
     if (!chDecomp(infoMatrix,infoMatDecomp,params)){
+
+        // Cleaning up
+        delete[] U;
+        delete[] infoMatrix;
+        delete[] infoMatDecomp;
+
         count = MAX;
         return;
     }
@@ -139,14 +145,23 @@ bool logisticReg( double & pvalue, double * phenovec_filtered, double * designma
      if (fitted0 & fitted1){
        dChiSq = 2.*(L1-L0);
        pvalue = (1.-gsl_cdf_chisq_P(dChiSq,df));
+
+       // Cleaning up
+       delete[] betas;
+       delete[] var;
+
        return true;
-     }else{
-      return false;
+
+     } else {
+
+       // Cleaning up
+       delete[] betas;
+       delete[] var;
+
+       return false;
+
     }
 
-     // Cleaning up
-     delete[] betas;
-     delete[] var;
 }
 
 

@@ -22,14 +22,14 @@ Programmer: Joshua Millstein
 
 extern "C" {
 
-void citconlog3p( double *, double *, double *, int &, 
+void citconlog3p( double *, double *, double *, int &,
 	int &, double *, double *, double *, double *, int &, int  &, int &, int * );
-	
+
 double gsl_stats_tss (const double data[], size_t stride, size_t n);
 
 int randwrapper3( int n );
 
-int randwrapper3( int n ) 
+int randwrapper3( int n )
 {
 	int x ;
 	x = (int)(n * unif_rand() );
@@ -37,8 +37,8 @@ int randwrapper3( int n )
 }
 
 // conduct permutations individually for each test so an intersection-union type approach can be applied to permutation-FDR
-void citconlog3p( double *L, double *G, double *T, int &nrow, int &ncol, 
-	double *pval1, double *pval2, double *pval3, double *pval4, 
+void citconlog3p( double *L, double *G, double *T, int &nrow, int &ncol,
+	double *pval1, double *pval2, double *pval3, double *pval4,
 	int &maxit, int &permit, int &boots, int *Pind )
 {
 
@@ -55,52 +55,52 @@ void citconlog3p( double *L, double *G, double *T, int &nrow, int &ncol,
 	vector<double> permindvec;
 	gsl_matrix *cov, *X;
 	gsl_vector *Gm, *Gp, *c;
-	
+
 	bootind = new int[nrow];
 	nposperm = new int[boots];
 	designmat = new double[nrow * (ncol + 2)];
 	phenovec = new double[nrow];
 	pindep = new double[boots];
-	
+
 	for(i = 0; i < boots; i++){
 		nposperm[ i ] = 0;
-	}	
-	
+	}
+
 // Rprintf("Hi 1\n");
 // Rprintf("Pind[0: ] %d\n", Pind[0]);
 
 	firstloop = permit;
-    
+
 	LL.resize( nrow );
 	PP.resize( nrow );
 	GetRNGstate();
-	permindvec.resize( nrow ); 
-	
+	permindvec.resize( nrow );
+
 	for(rw = 0; rw < nrow; rw++) {
-		LL[rw].resize( ncol );	
+		LL[rw].resize( ncol );
 	}
-	
+
 	for(cl = 0; cl < ncol; cl++) {
 		for(rw = 0; rw < nrow; rw++) {
 			LL[rw][cl] = L[rw + nrow * cl];
 		}
 	}
-	
+
 	for(rw = 0; rw < nrow; rw++) {
-		PP[rw].resize( boots );	
+		PP[rw].resize( boots );
 	}
-	
+
 	for(cl = 0; cl < boots; cl++) {
 		for(rw = 0; rw < nrow; rw++) {
 			PP[rw][cl] = Pind[rw + boots * cl];
 		}
 	}
-	
-	for(rw = 0; rw < nrow; rw++) { 	
+
+	for(rw = 0; rw < nrow; rw++) {
 		permindvec[ rw ] = rw;
 	}
 
-	// begin permutation loop	
+	// begin permutation loop
 	for(perm = 0; perm < (boots + 1); perm++) {
 		permute = perm > 0;
 		for(rw = 0; rw < nrow; rw++) {
@@ -127,12 +127,12 @@ void citconlog3p( double *L, double *G, double *T, int &nrow, int &ncol,
 				rind++;
 			} // end if aa
 		} // end for rw
-	
+
 		df = ncol;
 		converged = logisticReg( pv, phenovec, designmat, rind, dncol, df );
 		pv = ( converged ) ? pv : 9;
 		pval1[perm] = pv;  // pval for T ~ L, 9 if it did not converge, p1
-	
+
 		// fit model T ~ L + G
 		dncol = 1 + ncol + 1;
 		rind = 0;
@@ -154,12 +154,12 @@ void citconlog3p( double *L, double *G, double *T, int &nrow, int &ncol,
 				rind++;
 			} // end if aa
 		} // end for rw
-		
+
 		df = 1;
 		converged = logisticReg( pv, phenovec, designmat, rind, dncol, df );
 		pv = ( converged ) ? pv : 9;
 		pval2[perm]  = pv;  // pval for T ~ G|L, 9 if it did not converge, p2
-	
+
 		// fit model G ~ T
 		dncol = 2;
 		rind = 0;
@@ -175,10 +175,10 @@ void citconlog3p( double *L, double *G, double *T, int &nrow, int &ncol,
 				rind++;
 			} // end if aa
 		} // end for rw
-		
+
 		X = gsl_matrix_alloc(rind, dncol);
 		Gm = gsl_vector_alloc (rind);
-	
+
 		rind = 0;
 		for(rw = 0; rw < nrow; rw++) {
 			brw = bootind[ rw ] ;
@@ -190,21 +190,22 @@ void citconlog3p( double *L, double *G, double *T, int &nrow, int &ncol,
 			aa = ( G[ rw ] != -9999 ) ? aa : 0;
 			if( aa ){
 				gsl_matrix_set(X, rind, 0, 1.0);      // intercept
-				gsl_matrix_set(X, rind, 1, T[ rw ]); 
+				gsl_matrix_set(X, rind, 1, T[ rw ]);
 				gsl_vector_set(Gm, rind, G[rw]);
 				rind++;
 			} // end if aa
 		} // end for rw
-		
+
 		c = gsl_vector_alloc(dncol);
 		cov = gsl_matrix_alloc(dncol, dncol);
 		gsl_multifit_linear_workspace * work = gsl_multifit_linear_alloc(rind, dncol);
 		gsl_multifit_linear(X, Gm, c, cov, &rss2, work);
 		gsl_multifit_linear_free(work);
 		gsl_matrix_free(X);
+		gsl_vector_free(Gm);
 		gsl_matrix_free(cov);
 		gsl_vector_free(c);
-	
+
 		// fit model G ~ L + T
 		dncol = 1 + ncol + 1;
 		rind = 0;
@@ -220,10 +221,10 @@ void citconlog3p( double *L, double *G, double *T, int &nrow, int &ncol,
 				rind++;
 			} // end if aa
 		} // end for rw
-		
+
 		X = gsl_matrix_alloc(rind, dncol);
 		Gm = gsl_vector_alloc (rind);
-		
+
 		rind = 0;
 		for(rw = 0; rw < nrow; rw++) {
 			brw = bootind[ rw ] ;
@@ -238,18 +239,19 @@ void citconlog3p( double *L, double *G, double *T, int &nrow, int &ncol,
 				for(cl = 0; cl < ncol; cl++) {
                   gsl_matrix_set(X, rind, cl + 1, LL[ brw ][ cl ] );
 		     	}
-				gsl_matrix_set(X, rind, 1 + ncol, T[ rw ]); 
+				gsl_matrix_set(X, rind, 1 + ncol, T[ rw ]);
 				gsl_vector_set(Gm, rind, G[rw]);
 				rind++;
 			} // end if aa
 		} // end for rw
-		
+
 		c = gsl_vector_alloc(dncol);
 		cov = gsl_matrix_alloc(dncol, dncol);
 		work = gsl_multifit_linear_alloc(rind, dncol);
 		gsl_multifit_linear(X, Gm, c, cov, &rss3, work);
 		gsl_multifit_linear_free(work);
 		gsl_matrix_free(X);
+		gsl_vector_free(Gm);
 		gsl_matrix_free(cov);
 		gsl_vector_free(c);
 		df1 = ncol;
@@ -257,7 +259,7 @@ void citconlog3p( double *L, double *G, double *T, int &nrow, int &ncol,
 		F = df2*(rss2-rss3)/(rss3*df1);
 		pv = gsl_cdf_fdist_Q(F, df1, df2);
 		pval3[perm]  = pv; // pval for G ~ L|T, p3
-	
+
 		// fit model T ~ G + L
 		if( perm == 0 ){
 			dncol = 1 + 1 + ncol;
@@ -284,7 +286,7 @@ void citconlog3p( double *L, double *G, double *T, int &nrow, int &ncol,
 			df = ncol;
 			converged = logisticReg( pv, phenovec, designmat, rind, dncol, df );
 			pvalind = ( converged ) ? pv : 9;    // p-value for T ~ L|G
-		
+
 			// fit model G ~ L
 			dncol = 1 + ncol;
 			rind = 0;
@@ -298,10 +300,10 @@ void citconlog3p( double *L, double *G, double *T, int &nrow, int &ncol,
 					rind++;
 				} // end if aa
 			} // end for rw
-		
+
 			X = gsl_matrix_alloc(rind, dncol);
 			Gm = gsl_vector_alloc (rind);
-	
+
 			rind = 0;
 			for(rw = 0; rw < nrow; rw++) {
 				aa = 1;
@@ -318,14 +320,14 @@ void citconlog3p( double *L, double *G, double *T, int &nrow, int &ncol,
 					rind++;
 				} // end if aa
 			} // end for rw
-		
+
 			c = gsl_vector_alloc(dncol);
 			cov = gsl_matrix_alloc(dncol, dncol);
 			work = gsl_multifit_linear_alloc(rind, dncol);
 			gsl_multifit_linear(X, Gm, c, cov, &rss5, work);
 			gsl_multifit_linear_free(work);
 			gsl_matrix_free(cov);
-	
+
 			// residuals for G ~ L
 			for(rw = 0; rw < nrow; rw++) {
 				aa = 1;
@@ -341,22 +343,24 @@ void citconlog3p( double *L, double *G, double *T, int &nrow, int &ncol,
 					gpred.push_back(rhs);
 					tmp = gsl_vector_get(Gm, rw) - rhs;
 					gresid.push_back(tmp);
-				} 
+				}
 				else {
 					gpred.push_back(-9999);
 					gresid.push_back(-9999);
 				}
 			} // end rw loop
+			gsl_matrix_free(X);
+			gsl_vector_free(Gm);
 			gsl_vector_free (c);
 		} // end if perm == 0
-	
+
 		// Conduct an initial set of permutations
 		if( perm > 0 ){
-	
+
 			// bootstrap the residuals like the other tests, but since the outcome is not bootstrapped, this test is conducted under the null.
 			// compute G* based on marginal L effects and permuted residuals
 			Gp = gsl_vector_alloc (nrow);
-	
+
 			for(rw = 0; rw < nrow; rw++) {
 				brw = bootind[ rw ];
 				aa = 1;
@@ -369,9 +373,9 @@ void citconlog3p( double *L, double *G, double *T, int &nrow, int &ncol,
 					gsl_vector_set(Gp, rw, -9999 );
 				}
 			}
-	
+
 			// Recompute p-value for T ~ L|G based on G*
-			// fit model T ~ G* + L to test L 
+			// fit model T ~ G* + L to test L
 			dncol = 1 + 1 + ncol;
 			rind = 0;
 			for(rw = 0; rw < nrow; rw++) {
@@ -391,14 +395,16 @@ void citconlog3p( double *L, double *G, double *T, int &nrow, int &ncol,
 					rind++;
 				} // end if aa
 			} // end for rw
-		
+
 			df = ncol;
 			converged = logisticReg( pvp, phenovec, designmat, rind, dncol, df );
 			pindep[ perm - 1 ] = ( converged ) ? pvp : 9;    // p-value for T ~ L|G*
 
+			gsl_vector_free(Gp);
+
 		} // end if perm > 0
 	} // End perm loop
-	
+
 	npos = 0;
 	for(i = 0; i < firstloop; i++){
 		// randomly permute residuals
@@ -415,7 +421,7 @@ void citconlog3p( double *L, double *G, double *T, int &nrow, int &ncol,
 				gsl_vector_set(Gp, rw, -9999 );
 			}
 		} // end rw loop
-		// fit model T ~ G* + L to test L 
+		// fit model T ~ G* + L to test L
 		dncol = 1 + 1 + ncol;
 		rind = 0;
 		for(rw = 0; rw < nrow; rw++) {
@@ -435,26 +441,26 @@ void citconlog3p( double *L, double *G, double *T, int &nrow, int &ncol,
 				rind++;
 			} // end if aa
 		} // end for rw
-			
+
 		df = ncol;
 		converged = logisticReg( pvp, phenovec, designmat, rind, dncol, df );
 		pvp = ( converged ) ? pvp : 9;    // p-value for T ~ L|G*
 		if( pvp > pvalind ) npos++;
-			
+
 		for(j = 0; j < boots; j++){
 			if( pvp > pindep[ j ] ) nposperm[ j ] += 1;
 		}
 	} // end initial i permutation loop
-	
+
 	nperm = firstloop;
-			
+
 	// Conduct additional permutations if there is some indication of statistical significance
 	if( boots == 0 ){
 		aa = npos < posno;
 		bb = nperm < maxit;
-				
+
 		while(aa && bb) {
-	
+
 			// randomly permute residuals
 			random_shuffle( gresid.begin(), gresid.end(), randwrapper3 );
 			for(rw = 0; rw < nrow; rw++) {
@@ -469,7 +475,7 @@ void citconlog3p( double *L, double *G, double *T, int &nrow, int &ncol,
 					gsl_vector_set(Gp, rw, -9999 );
 				}
 			} // end rw loop
-			// fit model T ~ G* + L to test L 
+			// fit model T ~ G* + L to test L
 			dncol = 1 + 1 + ncol;
 			rind = 0;
 			for(rw = 0; rw < nrow; rw++) {
@@ -489,37 +495,37 @@ void citconlog3p( double *L, double *G, double *T, int &nrow, int &ncol,
 					rind++;
 				} // end if aa
 			} // end for rw
-			
+
 			df = ncol;
 			converged = logisticReg( pvp, phenovec, designmat, rind, dncol, df );
 			pvp = ( converged ) ? pvp : 9;    // p-value for T ~ L|G*
 			if( pvp > pvalind ) npos++;
-			
+
 			for(j = 0; j < boots; j++){
 				if( pvp > pindep[ j ] ) nposperm[ j ] += 1;
 			}
-				
+
 			aa = npos < posno;
 			cc = nperm < ( maxit - 1 );
 			nperm++;
 		} // end 'while' permutation loop
-	} // end if boots == 0 
-	
+	} // end if boots == 0
+
 	for(perm = 0; perm < (boots + 1); perm++) {
 		pv = ( perm == 0 ) ? 1.0 * npos / nperm : 1.0 * nposperm[ perm - 1 ] / nperm;
-		
+
 		// To avoid a p-value = 0, make 0 p-values = 1/nperm
 		pval4[perm] = ( pv > 0 ) ? pv : 1.0 * 1.0 / nperm;   // pval for L ind T|G
-		
+
 	} // End perm loop
-	
+
 	gresid.clear();
 	gpred.clear();
 	LL.clear();
 	gsl_vector_free (Gm);
 	gsl_vector_free (Gp);
 	PutRNGstate();
-	
+
 	delete [] bootind;
 	delete [] nposperm;
 	delete [] designmat;
