@@ -206,7 +206,6 @@ void citconlog2( double *L, double *G, double *T, int &nrow,
 		gsl_multifit_linear (X, Gm, c, cov, &rss5, work);
 		gsl_multifit_linear_free (work);
 		gsl_matrix_free (cov);
-		gsl_matrix_free(X);
 
 		// residuals for G ~ L
 		for(rw = 0; rw < nobs; rw++) {
@@ -311,6 +310,7 @@ void citconlog2( double *L, double *G, double *T, int &nrow,
 		gsl_vector_free (Gm);
 		gsl_vector_free (Tm);
 		gsl_vector_free (Gp);
+		gsl_matrix_free(X);
 
 	delete [] designmat;
 	delete [] phenovec;

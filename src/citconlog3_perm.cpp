@@ -100,8 +100,12 @@ void citconlog3p( double *L, double *G, double *T, int &nrow, int &ncol,
 		permindvec[ rw ] = rw;
 	}
 
+	// This vector is reused throughout the program
+	Gp = gsl_vector_alloc (nrow);
+
 	// begin permutation loop
 	for(perm = 0; perm < (boots + 1); perm++) {
+
 		permute = perm > 0;
 		for(rw = 0; rw < nrow; rw++) {
 			bootind[ rw ]  = ( permute ) ? (PP[ rw ][ perm - 1 ] - 1) : rw;
@@ -359,7 +363,7 @@ void citconlog3p( double *L, double *G, double *T, int &nrow, int &ncol,
 
 			// bootstrap the residuals like the other tests, but since the outcome is not bootstrapped, this test is conducted under the null.
 			// compute G* based on marginal L effects and permuted residuals
-			Gp = gsl_vector_alloc (nrow);
+			// Gp = gsl_vector_alloc (nrow);
 
 			for(rw = 0; rw < nrow; rw++) {
 				brw = bootind[ rw ];
@@ -400,9 +404,8 @@ void citconlog3p( double *L, double *G, double *T, int &nrow, int &ncol,
 			converged = logisticReg( pvp, phenovec, designmat, rind, dncol, df );
 			pindep[ perm - 1 ] = ( converged ) ? pvp : 9;    // p-value for T ~ L|G*
 
-			gsl_vector_free(Gp);
-
 		} // end if perm > 0
+
 	} // End perm loop
 
 	npos = 0;
@@ -522,7 +525,7 @@ void citconlog3p( double *L, double *G, double *T, int &nrow, int &ncol,
 	gresid.clear();
 	gpred.clear();
 	LL.clear();
-	gsl_vector_free (Gm);
+	// gsl_vector_free (Gm);
 	gsl_vector_free (Gp);
 	PutRNGstate();
 
