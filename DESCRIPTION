@@ -9,3 +9,4 @@ Description: A likelihood-based hypothesis testing approach is implemented for a
 SystemRequirements: gsl (with development libraries libgsl-dev)
 License: Artistic-2.0
 LazyLoad: yes
+Suggests: tinytest
