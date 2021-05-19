@@ -187,29 +187,29 @@ void citconlog2cvr( double *L, double *G, double *T, double *C, int &nrow, int &
 		gsl_vector_free (c);
 
 		// fit model G ~ L + T
-		X = gsl_matrix_alloc (nobs, ip + 1);
+		X = gsl_matrix_alloc (nobs, ncol + 2);
 		for(rw = 0; rw < nobs; rw++) {
 			gsl_matrix_set(X, rw, 0, 1.0);      // intercept
 			for(cl = 0; cl < ncol; cl++) {
                   gsl_matrix_set(X, rw, cl + 1, gsl_matrix_get (Lm, rw, cl));
 		     }
-		     gsl_matrix_set(X, rw, ip, gsl_vector_get (Tm, rw));
+		     gsl_matrix_set(X, rw, (ncol + 2) - 1, gsl_vector_get (Tm, rw)); 
 		}
-		c = gsl_vector_alloc (ip + 1);
-		cov = gsl_matrix_alloc (ip + 1, ip + 1);
-		work = gsl_multifit_linear_alloc (nobs, ip + 1);
+		c = gsl_vector_alloc (ncol + 2); // c: coefs
+		cov = gsl_matrix_alloc (ncol + 2, ncol + 2);
+		work = gsl_multifit_linear_alloc (nobs, ncol + 2);
 		gsl_multifit_linear (X, Gm, c, cov, &rss3, work);
 		gsl_multifit_linear_free (work);
 		gsl_matrix_free (X);
 		gsl_matrix_free (cov);
 		gsl_vector_free (c);
 		df1 = ncol;
-		df2 = nobs - ip -1;
+		df2 = nobs - (ncol + 2);
 		F = df2*(rss2-rss3)/(rss3*df1);
 		pv = gsl_cdf_fdist_Q(F, df1, df2);
 		pvec.push_back( pv ); // pval for G ~ L|T, p3
 
-		// fit model T ~ C + G + L to test L
+		// fit model T ~ C + G + L to test L 
 		for(rw = 0; rw < nobs; rw++) {
 		   designmat[ rw * stride  ] = 1;      // intercept
 		   for(cl = 0; cl < ncolc; cl++) {
@@ -226,16 +226,16 @@ void citconlog2cvr( double *L, double *G, double *T, double *C, int &nrow, int &
 		pv = ( converged ) ? pv : 9;    // p-value for T ~ L|G + C
 
 		// fit model G ~ L
-		X = gsl_matrix_alloc (nobs, ip );
+		X = gsl_matrix_alloc (nobs, ncol + 1 );
 		for(rw = 0; rw < nobs; rw++) {
 			gsl_matrix_set(X, rw, 0, 1.0);      // intercept
 			for(cl = 0; cl < ncol; cl++) {
                   gsl_matrix_set(X, rw, cl + 1, gsl_matrix_get (Lm, rw, cl));
 		     }
 		}
-		c = gsl_vector_alloc (ip);
-		cov = gsl_matrix_alloc (ip, ip);
-		work = gsl_multifit_linear_alloc (nobs, ip);
+		c = gsl_vector_alloc (ncol + 1);
+		cov = gsl_matrix_alloc (ncol + 1, ncol + 1);
+		work = gsl_multifit_linear_alloc (nobs, ncol + 1);
 		gsl_multifit_linear (X, Gm, c, cov, &rss5, work);
 		gsl_multifit_linear_free (work);
 		gsl_matrix_free (cov);
@@ -243,7 +243,7 @@ void citconlog2cvr( double *L, double *G, double *T, double *C, int &nrow, int &
 		// residuals for G ~ L
 		for(rw = 0; rw < nobs; rw++) {
 			rhs = 0;
-			for(cl = 0; cl < ip; cl++) {
+			for(cl = 0; cl < (ncol + 1); cl++) {
                   rhs += gsl_vector_get (c, cl) * gsl_matrix_get (X, rw, cl);
 		     }
 
@@ -268,7 +268,7 @@ void citconlog2cvr( double *L, double *G, double *T, double *C, int &nrow, int &
 
 			// Recompute p-value for T ~ L|G based on G*
 			// fit model T ~ C + G* + L to test L
-			stride = ip + 1;
+			stride = 1 + ncolc + 1 + ncol;
 			for(rw = 0; rw < nobs; rw++) {
 		   		designmat[ rw * stride  ] = 1;      // intercept
 		   		for(cl = 0; cl < ncolc; cl++) {
@@ -309,7 +309,7 @@ void citconlog2cvr( double *L, double *G, double *T, double *C, int &nrow, int &
 
 				// Recompute p-value for T ~ L|G based on G*
 				// fit model T ~ C + G* + L to test L
-				stride = ip + 1;
+				stride = 1 + ncolc + 1 + ncol;//ip + 1;
 				for(rw = 0; rw < nobs; rw++) {
 		   			designmat[ rw * stride  ] = 1;      // intercept
 		   			for(cl = 0; cl < ncolc; cl++) {

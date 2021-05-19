@@ -31,3 +31,8 @@
 *.out
 *.app
 .Rproj.user
+
+# Others
+*.tar.gz
+*.Rcheck
+*.Rhistory

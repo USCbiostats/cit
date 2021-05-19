@@ -4,4 +4,5 @@
 ^\.Rproj\.user$
 Makefile
 ^src-.+
-
+.*\.tar.gz
+.*\.Rcheck
