@@ -7,7 +7,7 @@ checkv: cit.tar.gz
 check: cit.tar.gz
 	R CMD check cit.tar.gz
 clean:
-	rm cit.tar.gz
+	rm -rf cit.tar.gz; rm -rf cit.Rcheck
 debug:
 	R -d valgrind --debugger-args='--leak-check=full'
 inst/NEWS: NEWS.md
