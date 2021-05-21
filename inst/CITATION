@@ -1,0 +1,38 @@
+year <- sub("-.*", "", meta$Date)
+note <- sprintf("R package version %s", meta$Version)
+
+citHeader("To cite cit in publications use:")
+
+citEntry(
+  entry  = "Article",
+  title = "cit: hypothesis testing software for mediation analysis in genomic applications",
+  author = c(
+    person("Joshua", "Millstein", email = "joshua.millstein@usc.edu"),
+    person("Gary", "Chen"),
+    person("Carrie", "Breton")
+    ),
+  journal = "Bioinformatics",
+  year    = 2016,
+  month   = "aug",
+  volume  = 32,
+  issue  = 15,
+  doi     = "10.1093/bioinformatics/btw135",
+  url     = "https://doi.org/10.1093/bioinformatics/btw135",
+  issn = "1367-4803",
+ textVersion = "Joshua Millstein, Gary K. Chen, Carrie V. Breton, cit: hypothesis testing software for mediation analysis in genomic applications, Bioinformatics, Volume 32, Issue 15, 1 August 2016, Pages 2364-2365, https://doi.org/10.1093/bioinformatics/btw135"
+)
+
+bibentry(
+  bibtype = "Manual",
+  title = "{{cit: Causal Inference Test}}",
+  author = person(
+    "Joshua", "Millstein", email = "joshua.millstein@usc.edu",
+    role = c("aut", "cre"), comment = c(ORCID="0000-0001-7961-8943")
+    ),
+  year = year,
+  note = note,
+  publisher="{CRAN}",
+  url = "https://cran.r-project.org/package=cit",
+  header = "Use this if you are using the CRAN version of cit:"
+)
+
