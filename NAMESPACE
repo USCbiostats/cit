@@ -1,8 +1,16 @@
 useDynLib(cit,.registration=TRUE)
 
-export(
-	## add new functions separated by comma when needed
-	linreg, cit.cp, cit.bp, fdr.od, fdr.cit, iuq, fdr.q.para, fdr.q.perm
-)
+export(cit.bp)
+export(cit.bp.m.v1)
+export(cit.bp.m.v2)
+export(cit.bp.v1)
+export(cit.bp.v2)
+export(cit.cp)
+export(cit.cp.m.v1)
+export(cit.cp.m.v2)
+export(cit.cp.v1)
+export(cit.cp.v2)
+exportPattern("^[[:alpha:]]+")
+importFrom(Rcpp,sourceCpp)
 
 importFrom("stats", "anova", "glm", "lm", "na.exclude", "pf", "pnorm", "qnorm", "resid", "sd", "var")
