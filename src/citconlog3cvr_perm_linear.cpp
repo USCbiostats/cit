@@ -9,7 +9,7 @@
 #include <gsl/gsl_cdf.h>
 #include <iostream>
 #include <random>       // std::default_random_engine
-#include "logisticfunc.h"
+#include "linearfunc.h"
 #include "maxElementWithNan.h"
 
 #include <Rcpp.h>
@@ -24,7 +24,7 @@ Programmer: Joshua Millstein
 */
 
 // [[Rcpp::export]]
-void citconlog3pcvr( Rcpp::NumericVector L, Rcpp::NumericVector G, Rcpp::NumericVector T, Rcpp::NumericVector C, int &nrow,
+void citconlog3pcvr_linear( Rcpp::NumericVector L, Rcpp::NumericVector G, Rcpp::NumericVector T, Rcpp::NumericVector C, int &nrow,
 	int &ncol,  int &ncolc, Rcpp::NumericVector pval1, Rcpp::NumericVector pval2, Rcpp::NumericVector pval3, Rcpp::NumericVector pval4, int &maxit, int &permit, int &boots, Rcpp::NumericVector Pind, int &rseed)
 {
 	unsigned seed = rseed;
@@ -131,7 +131,7 @@ void citconlog3pcvr( Rcpp::NumericVector L, Rcpp::NumericVector G, Rcpp::Numeric
 		} // end for rw
 
 		df = ncol;
-		converged = logisticReg( pv, phenovec, designmat, rind, dncol, df );
+		converged = linearRegCompare( pv, phenovec, designmat, rind, dncol, df );
 		if(!converged)Rcpp::Rcout<< "Warning: Cannot Converge when doing regression for calculating P-value." << std::endl;
 		pv = ( converged ) ? pv : std::numeric_limits<double>::quiet_NaN();
 		pval1[perm] = pv;  // pval for T ~ L|C, 9 if it did not converge, p1
@@ -165,7 +165,7 @@ void citconlog3pcvr( Rcpp::NumericVector L, Rcpp::NumericVector G, Rcpp::Numeric
 			} // end if aa
 		} // end for rw
 		df = 1;
-		converged = logisticReg( pv, phenovec, designmat, rind, dncol, df );
+		converged = linearRegCompare( pv, phenovec, designmat, rind, dncol, df );
 		if(!converged)Rcpp::Rcout<< "Warning: Cannot Converge when doing regression for calculating P-value." << std::endl;
 		pv = ( converged ) ? pv : std::numeric_limits<double>::quiet_NaN();
 		pval2[perm]  = pv;  // pval for T ~ G|L,C, 9 if it did not converge, p2
@@ -300,7 +300,7 @@ void citconlog3pcvr( Rcpp::NumericVector L, Rcpp::NumericVector G, Rcpp::Numeric
 			} // end for rw
 
 			df = ncol;
-			converged = logisticReg( pv, phenovec, designmat, rind, dncol, df );
+			converged = linearRegCompare( pv, phenovec, designmat, rind, dncol, df );
 			if(!converged)Rcpp::Rcout<< "Warning: Cannot Converge when doing regression for calculating P-value." << std::endl;
 			pvalind = ( converged ) ? pv : std::numeric_limits<double>::quiet_NaN();    // p-value for T ~ L|G,C
 
@@ -418,7 +418,7 @@ void citconlog3pcvr( Rcpp::NumericVector L, Rcpp::NumericVector G, Rcpp::Numeric
 			} // end for rw
 
 			df = ncol;
-			converged = logisticReg( pvp, phenovec, designmat, rind, dncol, df );
+			converged = linearRegCompare( pvp, phenovec, designmat, rind, dncol, df );
 			if(!converged)Rcpp::Rcout<< "Warning: Cannot Converge when doing regression for calculating P-value." << std::endl;
 			pindep[ perm - 1 ] = ( converged ) ? pvp : std::numeric_limits<double>::quiet_NaN();    // p-value for T ~ L|G*,C
 
@@ -471,7 +471,7 @@ void citconlog3pcvr( Rcpp::NumericVector L, Rcpp::NumericVector G, Rcpp::Numeric
 		} // end for rw
 
 		df = ncol;
-		converged = logisticReg( pvp, phenovec, designmat, rind, dncol, df );
+		converged = linearRegCompare( pvp, phenovec, designmat, rind, dncol, df );
 		if(!converged)Rcpp::Rcout<< "Warning: Cannot Converge when doing regression for calculating P-value." << std::endl;
 		pvp = ( converged ) ? pvp : std::numeric_limits<double>::quiet_NaN();    // p-value for T ~ L|G*,C
 		if( pvp > pvalind ) npos++;
@@ -533,7 +533,7 @@ void citconlog3pcvr( Rcpp::NumericVector L, Rcpp::NumericVector G, Rcpp::Numeric
 			} // end for rw
 
 			df = ncol;
-			converged = logisticReg( pvp, phenovec, designmat, rind, dncol, df );
+			converged = linearRegCompare( pvp, phenovec, designmat, rind, dncol, df );
 			if(!converged)Rcpp::Rcout<< "Warning: Cannot Converge when doing regression for calculating P-value." << std::endl;
 			pvp = ( converged ) ? pvp : std::numeric_limits<double>::quiet_NaN();    // p-value for T ~ L|G*,C
 			if( pvp > pvalind ) npos++;
@@ -567,4 +567,4 @@ void citconlog3pcvr( Rcpp::NumericVector L, Rcpp::NumericVector G, Rcpp::Numeric
 	delete [] phenovec;
 	delete [] pindep;
 
-} // End citconlog3pcvr
+} // End citconlog3pcvr_linear

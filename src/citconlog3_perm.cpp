@@ -8,45 +8,32 @@
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_cdf.h>
 #include <iostream>
-
+#include <random>       // std::default_random_engine
 #include "logisticfunc.h"
+#include <Rcpp.h>
+#include "maxElementWithNan.h"
 
+using namespace Rcpp;
 using namespace std;
 
 /*
 L: matrix of continuous instrumental variables
 G: matrix of candidate causal mediators
+ 
 T: matrix of 0/1 variables
 Programmer: Joshua Millstein
 */
 
-extern "C" {
-
-void citconlog3p( double *, double *, double *, int &,
-	int &, double *, double *, double *, double *, int &, int  &, int &, int * );
-
-double gsl_stats_tss (const double data[], size_t stride, size_t n);
-
-int randwrapper3( int n );
-
-int randwrapper3( int n )
+// [[Rcpp::export]]
+void citconlog3p( Rcpp::NumericVector L, Rcpp::NumericVector G, Rcpp::NumericVector T, int &nrow,
+	int &ncol, Rcpp::NumericVector pval1, Rcpp::NumericVector pval2, Rcpp::NumericVector pval3, Rcpp::NumericVector pval4, int &maxit, int &permit, int &boots, Rcpp::NumericVector Pind, int &rseed)
 {
-	int x ;
-	x = (int)(n * unif_rand() );
-	return x;
-}
-
-// conduct permutations individually for each test so an intersection-union type approach can be applied to permutation-FDR
-void citconlog3p( double *L, double *G, double *T, int &nrow, int &ncol,
-	double *pval1, double *pval2, double *pval3, double *pval4,
-	int &maxit, int &permit, int &boots, int *Pind )
-{
-
-	int rw, brw, cl, i, j, rind, df, df1, df2, npos, nperm, dncol, perm, firstloop;
+	unsigned seed = rseed;
+	int brw, i, j, rind, df, df1, df2, npos, nperm, dncol, firstloop;
 	int *bootind, *nposperm;
 	double rss2, rss3, rss5, F, pv, pvalind, pvp, tmp, rhs;
 	double *designmat, *phenovec, *pindep;
-	bool aa, bb, cc, converged, permute;
+	bool aa, bb, converged, permute;
 	const int posno = 20;
 	vector<vector<double> > LL;
 	vector<vector<int> > PP;
@@ -62,6 +49,7 @@ void citconlog3p( double *L, double *G, double *T, int &nrow, int &ncol,
 	phenovec = new double[nrow];
 	pindep = new double[boots];
 
+
 	for(i = 0; i < boots; i++){
 		nposperm[ i ] = 0;
 	}
@@ -76,56 +64,57 @@ void citconlog3p( double *L, double *G, double *T, int &nrow, int &ncol,
 	GetRNGstate();
 	permindvec.resize( nrow );
 
-	for(rw = 0; rw < nrow; rw++) {
+	for(int rw = 0; rw < nrow; rw++) {
 		LL[rw].resize( ncol );
 	}
 
-	for(cl = 0; cl < ncol; cl++) {
-		for(rw = 0; rw < nrow; rw++) {
+	for(int cl = 0; cl < ncol; cl++) {
+		for(int rw = 0; rw < nrow; rw++) {
 			LL[rw][cl] = L[rw + nrow * cl];
 		}
 	}
 
-	for(rw = 0; rw < nrow; rw++) {
+	for(int rw = 0; rw < nrow; rw++) {
 		PP[rw].resize( boots );
 	}
 
-	for(cl = 0; cl < boots; cl++) {
-		for(rw = 0; rw < nrow; rw++) {
-			PP[rw][cl] = Pind[rw + boots * cl];
+	for(int cl = 0; cl < boots; cl++) {
+		for(int rw = 0; rw < nrow; rw++) {
+			PP[rw][cl] = Pind[rw + nrow * cl];
 		}
 	}
 
-	for(rw = 0; rw < nrow; rw++) {
+	for(int rw = 0; rw < nrow; rw++) {
 		permindvec[ rw ] = rw;
 	}
 
 	// This vector is reused throughout the program
 	Gp = gsl_vector_alloc (nrow);
-
 	// begin permutation loop
-	for(perm = 0; perm < (boots + 1); perm++) {
+	for(int perm = 0; perm < (boots + 1); perm++) {
 
 		permute = perm > 0;
-		for(rw = 0; rw < nrow; rw++) {
-			bootind[ rw ]  = ( permute ) ? (PP[ rw ][ perm - 1 ] - 1) : rw;
+		for(int rw = 0; rw < nrow; rw++) {
+			bootind[ rw ]  = ( permute ) ? (PP[ rw ][ perm - 1 ] ) : rw;
 		}
+
 
 		// fit model T ~ L
 		// create design matrix with no missing values
 		dncol = 1 + ncol;                               // intercept + multiple L variable
 		rind = 0;
-		for(rw = 0; rw < nrow; rw++) {
+
+		for(int rw = 0; rw < nrow; rw++) {
 			brw = bootind[ rw ] ;
-			aa = 1;
-			aa = ( T[ rw ] != -9999 ) ? aa : 0;
-			for(cl = 0; cl < ncol; cl++) {
-                  aa = ( LL[ brw ][ cl ]  != -9999 ) ? aa : 0;
+			aa = true;
+			aa = ( T[ rw ] != -9999 ) ? aa : false;
+			for(int cl = 0; cl < ncol; cl++) {
+                  aa = ( LL[ brw ][ cl ]  != -9999 ) ? aa : false;
 			}
 			if( aa ){
 				phenovec[ rind ] = T[ rw ];
-				designmat[ rind * dncol  ] = 1;      // intercept
-				for(cl = 0; cl < ncol; cl++) {
+				designmat[ rind * dncol  ] = 1.0;      // intercept
+				for(int cl = 0; cl < ncol; cl++) {
                   designmat[ rind * dncol + 1 + cl  ]  = LL[ brw ][ cl ];
 				}
 				rind++;
@@ -134,24 +123,27 @@ void citconlog3p( double *L, double *G, double *T, int &nrow, int &ncol,
 
 		df = ncol;
 		converged = logisticReg( pv, phenovec, designmat, rind, dncol, df );
-		pv = ( converged ) ? pv : 9;
+		if (!converged) {
+			Rcpp::Rcout<< "Warning: Cannot Converge when doing regression for calculating P-value." << std::endl;
+		}
+		pv = ( converged ) ? pv : std::numeric_limits<double>::quiet_NaN();
 		pval1[perm] = pv;  // pval for T ~ L, 9 if it did not converge, p1
 
 		// fit model T ~ L + G
 		dncol = 1 + ncol + 1;
 		rind = 0;
-		for(rw = 0; rw < nrow; rw++) {
+		for(int rw = 0; rw < nrow; rw++) {
 			brw = bootind[ rw ] ;
 			aa = 1;
 			aa = ( T[ rw ] != -9999 ) ? aa : 0;
-			for(cl = 0; cl < ncol; cl++) {
+			for(int cl = 0; cl < ncol; cl++) {
                   aa = ( LL[ rw ][ cl ]  != -9999 ) ? aa : 0;
 			}
 			aa = ( G[ brw ] != -9999 ) ? aa : 0;
 			if( aa ){
 				phenovec[ rind ] = T[ rw ];
 				designmat[ rind * dncol  ] = 1;      // intercept
-				for(cl = 0; cl < ncol; cl++) {
+				for(int cl = 0; cl < ncol; cl++) {
                   designmat[ rind * dncol + 1 + cl  ]  = LL[ rw ][ cl ];
 				}
 				designmat[ rind * dncol + 1 + ncol  ] = G[ brw ];
@@ -161,17 +153,20 @@ void citconlog3p( double *L, double *G, double *T, int &nrow, int &ncol,
 
 		df = 1;
 		converged = logisticReg( pv, phenovec, designmat, rind, dncol, df );
-		pv = ( converged ) ? pv : 9;
+		if (!converged) {
+			Rcpp::Rcout<< "Warning: Cannot Converge when doing regression for calculating P-value." << std::endl;
+		}
+		pv = ( converged ) ? pv : std::numeric_limits<double>::quiet_NaN();
 		pval2[perm]  = pv;  // pval for T ~ G|L, 9 if it did not converge, p2
 
 		// fit model G ~ T
 		dncol = 2;
 		rind = 0;
-		for(rw = 0; rw < nrow; rw++) {
+		for(int rw = 0; rw < nrow; rw++) {
 			brw = bootind[ rw ] ;
 			aa = 1;
 			aa = ( T[ rw ] != -9999 ) ? aa : 0;
-			for(cl = 0; cl < ncol; cl++) {
+			for(int cl = 0; cl < ncol; cl++) {
                   aa = ( LL[ brw ][ cl ]  != -9999 ) ? aa : 0;
 			}
 			aa = ( G[ rw ] != -9999 ) ? aa : 0;
@@ -182,13 +177,12 @@ void citconlog3p( double *L, double *G, double *T, int &nrow, int &ncol,
 
 		X = gsl_matrix_alloc(rind, dncol);
 		Gm = gsl_vector_alloc (rind);
-
 		rind = 0;
-		for(rw = 0; rw < nrow; rw++) {
+		for(int rw = 0; rw < nrow; rw++) {
 			brw = bootind[ rw ] ;
 			aa = 1;
 			aa = ( T[ rw ] != -9999 ) ? aa : 0;
-			for(cl = 0; cl < ncol; cl++) {
+			for(int cl = 0; cl < ncol; cl++) {
                   aa = ( LL[ brw ][ cl ]  != -9999 ) ? aa : 0;
 			}
 			aa = ( G[ rw ] != -9999 ) ? aa : 0;
@@ -213,11 +207,11 @@ void citconlog3p( double *L, double *G, double *T, int &nrow, int &ncol,
 		// fit model G ~ L + T
 		dncol = 1 + ncol + 1;
 		rind = 0;
-		for(rw = 0; rw < nrow; rw++) {
+		for(int rw = 0; rw < nrow; rw++) {
 			brw = bootind[ rw ] ;
 			aa = 1;
 			aa = ( T[ rw ] != -9999 ) ? aa : 0;
-			for(cl = 0; cl < ncol; cl++) {
+			for(int cl = 0; cl < ncol; cl++) {
                   aa = ( LL[ brw ][ cl ]  != -9999 ) ? aa : 0;
 			}
 			aa = ( G[ rw ] != -9999 ) ? aa : 0;
@@ -229,18 +223,19 @@ void citconlog3p( double *L, double *G, double *T, int &nrow, int &ncol,
 		X = gsl_matrix_alloc(rind, dncol);
 		Gm = gsl_vector_alloc (rind);
 
+			
 		rind = 0;
-		for(rw = 0; rw < nrow; rw++) {
+		for(int rw = 0; rw < nrow; rw++) {
 			brw = bootind[ rw ] ;
 			aa = 1;
 			aa = ( T[ rw ] != -9999 ) ? aa : 0;
-			for(cl = 0; cl < ncol; cl++) {
+			for(int cl = 0; cl < ncol; cl++) {
                   aa = ( LL[ brw ][ cl ]  != -9999 ) ? aa : 0;
 			}
 			aa = ( G[ rw ] != -9999 ) ? aa : 0;
 			if( aa ){
 				gsl_matrix_set(X, rind, 0, 1.0);      // intercept
-				for(cl = 0; cl < ncol; cl++) {
+				for(int cl = 0; cl < ncol; cl++) {
                   gsl_matrix_set(X, rind, cl + 1, LL[ brw ][ cl ] );
 		     	}
 				gsl_matrix_set(X, rind, 1 + ncol, T[ rw ]);
@@ -264,15 +259,16 @@ void citconlog3p( double *L, double *G, double *T, int &nrow, int &ncol,
 		pv = gsl_cdf_fdist_Q(F, df1, df2);
 		pval3[perm]  = pv; // pval for G ~ L|T, p3
 
+
 		// fit model T ~ G + L
 		if( perm == 0 ){
 			dncol = 1 + 1 + ncol;
 			rind = 0;
-			for(rw = 0; rw < nrow; rw++) {
+			for(int rw = 0; rw < nrow; rw++) {
 				brw = bootind[ rw ] ;
 				aa = 1;
 				aa = ( T[ rw ] != -9999 ) ? aa : 0;
-				for(cl = 0; cl < ncol; cl++) {
+				for(int cl = 0; cl < ncol; cl++) {
                   aa = ( LL[ rw ][ cl ]  != -9999 ) ? aa : 0;
 				}
 				aa = ( G[ brw ] != -9999 ) ? aa : 0;
@@ -280,7 +276,7 @@ void citconlog3p( double *L, double *G, double *T, int &nrow, int &ncol,
 					phenovec[ rind ] = T[ rw ];
 					designmat[ rind * dncol  ] = 1;      // intercept
 					designmat[ rind * dncol + 1  ] = G[ brw ];
-					for(cl = 0; cl < ncol; cl++) {
+					for(int cl = 0; cl < ncol; cl++) {
                  	designmat[ rind * dncol + 2 + cl  ]  = LL[ rw ][ cl ];
 					}
 					rind++;
@@ -289,15 +285,18 @@ void citconlog3p( double *L, double *G, double *T, int &nrow, int &ncol,
 
 			df = ncol;
 			converged = logisticReg( pv, phenovec, designmat, rind, dncol, df );
-			pvalind = ( converged ) ? pv : 9;    // p-value for T ~ L|G
+			if (!converged) {
+			Rcpp::Rcout<< "Warning: Cannot Converge when doing regression for calculating P-value." << std::endl;
+		}
+			pvalind = ( converged ) ? pv : std::numeric_limits<double>::quiet_NaN();    // p-value for T ~ L|G
 
 			// fit model G ~ L
 			dncol = 1 + ncol;
 			rind = 0;
-			for(rw = 0; rw < nrow; rw++) {
+			for(int rw = 0; rw < nrow; rw++) {
 				aa = 1;
 				aa = ( G[ rw ] != -9999 ) ? aa : 0;
-				for(cl = 0; cl < ncol; cl++) {
+				for(int cl = 0; cl < ncol; cl++) {
                   aa = ( LL[ rw ][ cl ]  != -9999 ) ? aa : 0;
 				}
 				if( aa ){
@@ -309,15 +308,15 @@ void citconlog3p( double *L, double *G, double *T, int &nrow, int &ncol,
 			Gm = gsl_vector_alloc (rind);
 
 			rind = 0;
-			for(rw = 0; rw < nrow; rw++) {
+			for(int rw = 0; rw < nrow; rw++) {
 				aa = 1;
 				aa = ( G[ rw ] != -9999 ) ? aa : 0;
-				for(cl = 0; cl < ncol; cl++) {
+				for(int cl = 0; cl < ncol; cl++) {
                   aa = ( LL[ rw ][ cl ]  != -9999 ) ? aa : 0;
 				}
 				if( aa ){
 					gsl_matrix_set(X, rind, 0, 1.0);      // intercept
-					for(cl = 0; cl < ncol; cl++) {
+					for(int cl = 0; cl < ncol; cl++) {
                  	gsl_matrix_set(X, rind, cl + 1, LL[ rw ][ cl ] );
 		     		}
 					gsl_vector_set(Gm, rind, G[rw]);
@@ -333,15 +332,16 @@ void citconlog3p( double *L, double *G, double *T, int &nrow, int &ncol,
 			gsl_matrix_free(cov);
 
 			// residuals for G ~ L
-			for(rw = 0; rw < nrow; rw++) {
+
+			for(int rw = 0; rw < nrow; rw++) {
 				aa = 1;
 				aa = ( G[ rw ] != -9999 ) ? aa : 0;
-				for(cl = 0; cl < ncol; cl++) {
+				for(int cl = 0; cl < ncol; cl++) {
                  aa = ( LL[ rw ][ cl ]  != -9999 ) ? aa : 0;
 				}
 				if( aa ){
 					rhs = gsl_vector_get(c, 0); // intercept
-					for(cl = 0; cl < ncol; cl++) {
+					for(int cl = 0; cl < ncol; cl++) {
                   rhs += gsl_vector_get(c, (cl+1)) * LL[ rw ][ cl ];
 		     		}
 					gpred.push_back(rhs);
@@ -353,6 +353,7 @@ void citconlog3p( double *L, double *G, double *T, int &nrow, int &ncol,
 					gresid.push_back(-9999);
 				}
 			} // end rw loop
+
 			gsl_matrix_free(X);
 			gsl_vector_free(Gm);
 			gsl_vector_free (c);
@@ -365,7 +366,8 @@ void citconlog3p( double *L, double *G, double *T, int &nrow, int &ncol,
 			// compute G* based on marginal L effects and permuted residuals
 			// Gp = gsl_vector_alloc (nrow);
 
-			for(rw = 0; rw < nrow; rw++) {
+
+			for(int rw = 0; rw < nrow; rw++) {
 				brw = bootind[ rw ];
 				aa = 1;
 				aa = ( gpred[rw] != -9999 ) ? aa : 0;
@@ -382,10 +384,11 @@ void citconlog3p( double *L, double *G, double *T, int &nrow, int &ncol,
 			// fit model T ~ G* + L to test L
 			dncol = 1 + 1 + ncol;
 			rind = 0;
-			for(rw = 0; rw < nrow; rw++) {
+
+			for(int rw = 0; rw < nrow; rw++) {
 				aa = 1;
 				aa = ( T[ rw ] != -9999 ) ? aa : 0;
-				for(cl = 0; cl < ncol; cl++) {
+				for(int cl = 0; cl < ncol; cl++) {
                   aa = ( LL[ rw ][ cl ]  != -9999 ) ? aa : 0;
 				}
 				aa = ( gsl_vector_get(Gp, rw ) != -9999 ) ? aa : 0;
@@ -393,16 +396,19 @@ void citconlog3p( double *L, double *G, double *T, int &nrow, int &ncol,
 					phenovec[ rind ] = T[ rw ];
 					designmat[ rind * dncol  ] = 1;      // intercept
 					designmat[ rind * dncol + 1  ] = gsl_vector_get(Gp, rw );
-					for(cl = 0; cl < ncol; cl++) {
+
+					for(int cl = 0; cl < ncol; cl++) {
                   		designmat[ rind * dncol + 2 + cl  ]  = LL[ rw ][ cl ];
 					}
 					rind++;
 				} // end if aa
 			} // end for rw
-
 			df = ncol;
 			converged = logisticReg( pvp, phenovec, designmat, rind, dncol, df );
-			pindep[ perm - 1 ] = ( converged ) ? pvp : 9;    // p-value for T ~ L|G*
+			if (!converged) {
+			Rcpp::Rcout<< "Warning: Cannot Converge when doing regression for calculating P-value." << std::endl;
+		}
+			pindep[ perm - 1 ] = ( converged ) ? pvp : std::numeric_limits<double>::quiet_NaN();    // p-value for T ~ L|G*
 
 		} // end if perm > 0
 
@@ -411,8 +417,9 @@ void citconlog3p( double *L, double *G, double *T, int &nrow, int &ncol,
 	npos = 0;
 	for(i = 0; i < firstloop; i++){
 		// randomly permute residuals
-		random_shuffle( gresid.begin(), gresid.end(), randwrapper3 );
-		for(rw = 0; rw < nrow; rw++) {
+		
+		shuffle( gresid.begin(), gresid.end(), std::default_random_engine(seed) );
+		for(int rw = 0; rw < nrow; rw++) {
 			brw = bootind[ rw ];
 			aa = 1;
 			aa = ( gpred[rw] != -9999 ) ? aa : 0;
@@ -427,10 +434,10 @@ void citconlog3p( double *L, double *G, double *T, int &nrow, int &ncol,
 		// fit model T ~ G* + L to test L
 		dncol = 1 + 1 + ncol;
 		rind = 0;
-		for(rw = 0; rw < nrow; rw++) {
+		for(int rw = 0; rw < nrow; rw++) {
 			aa = 1;
 			aa = ( T[ rw ] != -9999 ) ? aa : 0;
-			for(cl = 0; cl < ncol; cl++) {
+			for(int cl = 0; cl < ncol; cl++) {
           	aa = ( LL[ rw ][ cl ]  != -9999 ) ? aa : 0;
 			}
 			aa = ( gsl_vector_get(Gp, rw ) != -9999 ) ? aa : 0;
@@ -438,7 +445,7 @@ void citconlog3p( double *L, double *G, double *T, int &nrow, int &ncol,
 				phenovec[ rind ] = T[ rw ];
 				designmat[ rind * dncol  ] = 1;      // intercept
 				designmat[ rind * dncol + 1  ] = gsl_vector_get(Gp, rw );
-				for(cl = 0; cl < ncol; cl++) {
+				for(int cl = 0; cl < ncol; cl++) {
                  designmat[ rind * dncol + 2 + cl  ]  = LL[ rw ][ cl ];
 				}
 				rind++;
@@ -447,7 +454,10 @@ void citconlog3p( double *L, double *G, double *T, int &nrow, int &ncol,
 
 		df = ncol;
 		converged = logisticReg( pvp, phenovec, designmat, rind, dncol, df );
-		pvp = ( converged ) ? pvp : 9;    // p-value for T ~ L|G*
+		if (!converged) {
+			Rcpp::Rcout<< "Warning: Cannot Converge when doing regression for calculating P-value." << std::endl;
+		}
+		pvp = ( converged ) ? pvp : std::numeric_limits<double>::quiet_NaN();    // p-value for T ~ L|G*
 		if( pvp > pvalind ) npos++;
 
 		for(j = 0; j < boots; j++){
@@ -465,8 +475,9 @@ void citconlog3p( double *L, double *G, double *T, int &nrow, int &ncol,
 		while(aa && bb) {
 
 			// randomly permute residuals
-			random_shuffle( gresid.begin(), gresid.end(), randwrapper3 );
-			for(rw = 0; rw < nrow; rw++) {
+			
+			shuffle( gresid.begin(), gresid.end(), std::default_random_engine(seed) );
+			for(int rw = 0; rw < nrow; rw++) {
 				brw = bootind[ rw ];
 				aa = 1;
 				aa = ( gpred[rw] != -9999 ) ? aa : 0;
@@ -481,10 +492,10 @@ void citconlog3p( double *L, double *G, double *T, int &nrow, int &ncol,
 			// fit model T ~ G* + L to test L
 			dncol = 1 + 1 + ncol;
 			rind = 0;
-			for(rw = 0; rw < nrow; rw++) {
+			for(int rw = 0; rw < nrow; rw++) {
 				aa = 1;
 				aa = ( T[ rw ] != -9999 ) ? aa : 0;
-				for(cl = 0; cl < ncol; cl++) {
+				for(int cl = 0; cl < ncol; cl++) {
                   aa = ( LL[ rw ][ cl ]  != -9999 ) ? aa : 0;
 				}
 				aa = ( gsl_vector_get(Gp, rw ) != -9999 ) ? aa : 0;
@@ -492,7 +503,7 @@ void citconlog3p( double *L, double *G, double *T, int &nrow, int &ncol,
 					phenovec[ rind ] = T[ rw ];
 					designmat[ rind * dncol  ] = 1;      // intercept
 					designmat[ rind * dncol + 1  ] = gsl_vector_get(Gp, rw );
-					for(cl = 0; cl < ncol; cl++) {
+					for(int cl = 0; cl < ncol; cl++) {
                   		designmat[ rind * dncol + 2 + cl  ]  = LL[ rw ][ cl ];
 					}
 					rind++;
@@ -501,7 +512,10 @@ void citconlog3p( double *L, double *G, double *T, int &nrow, int &ncol,
 
 			df = ncol;
 			converged = logisticReg( pvp, phenovec, designmat, rind, dncol, df );
-			pvp = ( converged ) ? pvp : 9;    // p-value for T ~ L|G*
+			if (!converged) {
+			Rcpp::Rcout<< "Warning: Cannot Converge when doing regression for calculating P-value." << std::endl;
+		}
+			pvp = ( converged ) ? pvp : std::numeric_limits<double>::quiet_NaN();    // p-value for T ~ L|G*
 			if( pvp > pvalind ) npos++;
 
 			for(j = 0; j < boots; j++){
@@ -509,12 +523,12 @@ void citconlog3p( double *L, double *G, double *T, int &nrow, int &ncol,
 			}
 
 			aa = npos < posno;
-			cc = nperm < ( maxit - 1 );
 			nperm++;
 		} // end 'while' permutation loop
 	} // end if boots == 0
 
-	for(perm = 0; perm < (boots + 1); perm++) {
+
+	for(int perm = 0; perm < (boots + 1); perm++) {
 		pv = ( perm == 0 ) ? 1.0 * npos / nperm : 1.0 * nposperm[ perm - 1 ] / nperm;
 
 		// To avoid a p-value = 0, make 0 p-values = 1/nperm
@@ -536,4 +550,3 @@ void citconlog3p( double *L, double *G, double *T, int &nrow, int &ncol,
 	delete [] pindep;
 
 } // End citconlog3p
-} // End extern c wrapper

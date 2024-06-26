@@ -8,9 +8,13 @@
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_cdf.h>
 #include <iostream>
-
+#include <random>       // std::default_random_engine
 #include "logisticfunc.h"
+#include "maxElementWithNan.h"
 
+
+#include <Rcpp.h>
+using namespace Rcpp;
 using namespace std;
 
 /*
@@ -21,26 +25,11 @@ T: matrix of 0/1 variables
 Programmer: Joshua Millstein
 */
 
-extern "C" {
-
-void citconlog2cvr( double *, double *, double *, double *, int &, int &, int &,
-	double &, double &, double &, double &, double &, int &);
-
-double gsl_stats_tss (const double data[], size_t stride, size_t n);
-
-int randwrapper1a( int n );
-
-int randwrapper1a( int n )
+// [[Rcpp::export]]
+void citconlog2cvr( Rcpp::NumericVector L, Rcpp::NumericVector G, Rcpp::NumericVector T, Rcpp::NumericVector C, int &nrow,
+	int &ncol, int &ncolc, Rcpp::NumericVector pval, Rcpp::NumericVector pval1, Rcpp::NumericVector pval2, Rcpp::NumericVector pval3, Rcpp::NumericVector pval4, int &maxit, int &rseed)
 {
-	int x ;
-	x = (int)(n * unif_rand() );
-	return x;
-}
-
-
-void citconlog2cvr( double *L, double *G, double *T, double *C, int &nrow, int &ncol, int &ncolc,
-	double &pval, double &pval1, double &pval2, double &pval3, double &pval4, int &maxit )
-{
+	unsigned seed = rseed;
 	int rw, cl, i, rind, df, df1, df2, nobs, ip, npos, nperm, nmiss, stride;
 	double rss2, rss3, rss5, F, tmp, rhs, maxp, testval;
 	double pv  = 9.0; // Need to initialize value, otherwise conditional jump
@@ -150,7 +139,8 @@ void citconlog2cvr( double *L, double *G, double *T, double *C, int &nrow, int &
 		}
 		df = ncol;
 		converged = logisticReg( pv, phenovec, designmat, nobs, ip, df );
-		pv = ( converged ) ? pv : 9;
+		if(!converged)Rcpp::Rcout<< "Warning: Cannot Converge when doing regression for calculating P-value." << std::endl;
+		pv = ( converged ) ? pv : std::numeric_limits<double>::quiet_NaN();
 		pvec.push_back( pv );  // pval for T ~ C + L, 9 if it did not converge, p1
 
 		// fit model T ~ C + L + G
@@ -168,7 +158,8 @@ void citconlog2cvr( double *L, double *G, double *T, double *C, int &nrow, int &
 
 		df = 1;
 		converged = logisticReg( pv, phenovec, designmat, nobs, stride, df );
-		pv = ( converged ) ? pv : 9;
+		if(!converged)Rcpp::Rcout<< "Warning: Cannot Converge when doing regression for calculating P-value." << std::endl;
+		pv = ( converged ) ? pv : std::numeric_limits<double>::quiet_NaN();
 		pvec.push_back( pv );  // pval for T ~ G|L,C, 9 if it did not converge, p2
 
 		// fit model G ~ T
@@ -223,7 +214,8 @@ void citconlog2cvr( double *L, double *G, double *T, double *C, int &nrow, int &
 
 		df = ncol;
 		converged = logisticReg( pv, phenovec, designmat, nobs, stride, df );
-		pv = ( converged ) ? pv : 9;    // p-value for T ~ L|G + C
+		if(!converged)Rcpp::Rcout<< "Warning: Cannot Converge when doing regression for calculating P-value." << std::endl;
+		pv = ( converged ) ? pv : std::numeric_limits<double>::quiet_NaN();    // p-value for T ~ L|G + C
 
 		// fit model G ~ L
 		X = gsl_matrix_alloc (nobs, ncol + 1 );
@@ -259,7 +251,8 @@ void citconlog2cvr( double *L, double *G, double *T, double *C, int &nrow, int &
 		npos = 0;
 		for(i = 0; i < firstloop; i++){
 			// randomly permute residuals
-			random_shuffle( gresid.begin(), gresid.end(), randwrapper1a );
+			
+			shuffle( gresid.begin(), gresid.end(), std::default_random_engine(seed) );
 
 			// compute G* based on marginal L effects and permuted residuals
 			for(rw = 0; rw < nobs; rw++) {
@@ -282,13 +275,14 @@ void citconlog2cvr( double *L, double *G, double *T, double *C, int &nrow, int &
 
 			df = ncol;
 			converged = logisticReg( pvp, phenovec, designmat, nobs, stride, df );
-			pvp = ( converged ) ? pvp : 9;    // p-value for T ~ L|G*
+			if(!converged)Rcpp::Rcout<< "Warning: Cannot Converge when doing regression for calculating P-value." << std::endl;
+			pvp = ( converged ) ? pvp : std::numeric_limits<double>::quiet_NaN();    // p-value for T ~ L|G*
 			if( pvp > pv ) npos++;
 
 		} // end initial permutation loop
 
 		// Conduct additional permutations if there is some indication of statistical significance
-		maxp = *max_element( pvec.begin(), pvec.end() );
+		maxp = maxElementWithNan(pvec);
 		nperm = firstloop;
 		aa = npos < posno;
 		bb = maxp < alpha;
@@ -300,7 +294,8 @@ void citconlog2cvr( double *L, double *G, double *T, double *C, int &nrow, int &
 			while(aa && cc) {
 
 				// randomly permute residuals
-				random_shuffle( gresid.begin(), gresid.end(), randwrapper1a );
+				
+			    shuffle( gresid.begin(), gresid.end(), std::default_random_engine(seed) );
 
 				// compute G* based on marginal L effects and permuted residuals
 				for(rw = 0; rw < nobs; rw++) {
@@ -323,7 +318,8 @@ void citconlog2cvr( double *L, double *G, double *T, double *C, int &nrow, int &
 
 				df = ncol;
 				converged = logisticReg( pvp, phenovec, designmat, nobs, stride, df );
-				pvp = ( converged ) ? pvp : 9;    // p-value for T ~ L|G*
+				if(!converged)Rcpp::Rcout<< "Warning: Cannot Converge when doing regression for calculating P-value." << std::endl;
+				pvp = ( converged ) ? pvp : std::numeric_limits<double>::quiet_NaN();    // p-value for T ~ L|G*
 				if( pvp > pv ) npos++;
 
 				aa = npos < posno;
@@ -335,12 +331,12 @@ void citconlog2cvr( double *L, double *G, double *T, double *C, int &nrow, int &
 
 		pvec.push_back(pv); // pval for L ind T|G
 
-		maxp = *max_element( pvec.begin(), pvec.end() );
-		pval = maxp;
-		pval1 = pvec[0]; // pval for T ~ L
-		pval2 = pvec[1]; // pval for T ~ G|L
-		pval3 = pvec[2]; // pval for G ~ L|T
-		pval4 = pvec[3]; // pval for L ind T|G
+		maxp = maxElementWithNan(pvec);
+		pval[0] = maxp;
+		pval1[0] = pvec[0]; // pval for T ~ L
+		pval2[0] = pvec[1]; // pval for T ~ G|L
+		pval3[0] = pvec[2]; // pval for G ~ L|T
+		pval4[0] = pvec[3]; // pval for L ind T|G
 
 		pvec.clear();
 		gresid.clear();
@@ -359,4 +355,4 @@ void citconlog2cvr( double *L, double *G, double *T, double *C, int &nrow, int &
 	LL.clear();
 
 } // End citconlog2
-} // End extern c wrapper
+

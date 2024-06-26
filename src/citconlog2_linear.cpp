@@ -1,4 +1,3 @@
-
 #include <R.h>
 #include <Rmath.h>
 #include <vector>
@@ -10,12 +9,12 @@
 #include <gsl/gsl_cdf.h>
 #include <iostream>
 #include <random>       // std::default_random_engine
-#include "logisticfunc.h"
+#include "linearfunc.h"
 #include "maxElementWithNan.h"
-
 
 #include <Rcpp.h>
 using namespace Rcpp;
+
 using namespace std;
 
 /*
@@ -25,9 +24,8 @@ T: matrix of 0/1 variables
 Programmer: Joshua Millstein
 */
 
-
 // [[Rcpp::export]]
-void citconlog2( Rcpp::NumericVector L, Rcpp::NumericVector G, Rcpp::NumericVector T, int &nrow,
+void citconlog2_linear( Rcpp::NumericVector L, Rcpp::NumericVector G, Rcpp::NumericVector T, int &nrow,
 	int &ncol, Rcpp::NumericVector pval, Rcpp::NumericVector pval1, Rcpp::NumericVector pval2, Rcpp::NumericVector pval3, Rcpp::NumericVector pval4, int &maxit, int &rseed)
 {
 	unsigned seed = rseed;
@@ -112,8 +110,9 @@ void citconlog2( Rcpp::NumericVector L, Rcpp::NumericVector G, Rcpp::NumericVect
                 designmat[ rw * ip + 1 + cl  ]  = gsl_matrix_get (Lm, rw, cl);
 		     }
 		}
+
 		df = ncol;
-		converged = logisticReg( pv, phenovec, designmat, nobs, ip, df );
+		converged = linearRegCompare( pv, phenovec, designmat, nobs, ip, df );
 		if(!converged)Rcpp::Rcout<< "Warning: Cannot Converge when doing regression for calculating P-value." << std::endl;
 		pv = ( converged ) ? pv : std::numeric_limits<double>::quiet_NaN();
 		pvec.push_back( pv );  // pval for T ~ L, 9 if it did not converge, p1
@@ -129,7 +128,7 @@ void citconlog2( Rcpp::NumericVector L, Rcpp::NumericVector G, Rcpp::NumericVect
 		}
 
 		df = 1;
-		converged = logisticReg( pv, phenovec, designmat, nobs, stride, df );
+		converged = linearRegCompare( pv, phenovec, designmat, nobs, stride, df );
 		if(!converged)Rcpp::Rcout<< "Warning: Cannot Converge when doing regression for calculating P-value." << std::endl;
 		pv = ( converged ) ? pv : std::numeric_limits<double>::quiet_NaN();
 		pvec.push_back( pv );  // pval for T ~ G|L, 9 if it did not converge, p2
@@ -182,7 +181,7 @@ void citconlog2( Rcpp::NumericVector L, Rcpp::NumericVector G, Rcpp::NumericVect
 		   }
 		}
 		df = ncol;
-		converged = logisticReg( pv, phenovec, designmat, nobs, stride, df );
+		converged = linearRegCompare( pv, phenovec, designmat, nobs, stride, df );
 		if(!converged)Rcpp::Rcout<< "Warning: Cannot Converge when doing regression for calculating P-value." << std::endl;
 		pv = ( converged ) ? pv : std::numeric_limits<double>::quiet_NaN();    // p-value for T ~ L|G
 
@@ -220,6 +219,8 @@ void citconlog2( Rcpp::NumericVector L, Rcpp::NumericVector G, Rcpp::NumericVect
 		npos = 0;
 		for(i = 0; i < firstloop; i++){
 			// randomly permute residuals
+			// random_shuffle( gresid.begin(), gresid.end(), randwrapper1 );
+            // unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
 			
 			shuffle( gresid.begin(), gresid.end(), std::default_random_engine(seed) );
 
@@ -240,7 +241,7 @@ void citconlog2( Rcpp::NumericVector L, Rcpp::NumericVector G, Rcpp::NumericVect
 			}
 
 			df = ncol;
-			converged = logisticReg( pvp, phenovec, designmat, nobs, stride, df );
+			converged = linearRegCompare( pvp, phenovec, designmat, nobs, stride, df );
 			if(!converged)Rcpp::Rcout<< "Warning: Cannot Converge when doing regression for calculating P-value." << std::endl;
 			pvp = ( converged ) ? pvp : std::numeric_limits<double>::quiet_NaN();    // p-value for T ~ L|G*
 			if( pvp > pv ) npos++;
@@ -261,8 +262,11 @@ void citconlog2( Rcpp::NumericVector L, Rcpp::NumericVector G, Rcpp::NumericVect
 			while(aa && cc) {
 
 				// randomly permute residuals
+				// random_shuffle( gresid.begin(), gresid.end(), randwrapper1 );
+				// unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
 				
-				shuffle( gresid.begin(), gresid.end(), std::default_random_engine(seed) );
+			    shuffle( gresid.begin(), gresid.end(), std::default_random_engine(seed) );
+
 				// compute G* based on marginal L effects and permuted residuals
 				for(rw = 0; rw < nobs; rw++) {
 					gsl_vector_set(Gp, rw, gpred[rw] + gresid[rw] );
@@ -280,7 +284,7 @@ void citconlog2( Rcpp::NumericVector L, Rcpp::NumericVector G, Rcpp::NumericVect
 				}
 
 				df = ncol;
-				converged = logisticReg( pvp, phenovec, designmat, nobs, stride, df );
+				converged = linearRegCompare( pvp, phenovec, designmat, nobs, stride, df );
 				if(!converged)Rcpp::Rcout<< "Warning: Cannot Converge when doing regression for calculating P-value." << std::endl;
 				pvp = ( converged ) ? pvp : std::numeric_limits<double>::quiet_NaN();    // p-value for T ~ L|G*
 				if( pvp > pv ) npos++;
@@ -311,11 +315,28 @@ void citconlog2( Rcpp::NumericVector L, Rcpp::NumericVector G, Rcpp::NumericVect
 		gsl_vector_free (Gp);
 		gsl_matrix_free(X);
 
+
 	delete [] designmat;
 	delete [] phenovec;
 
 	PutRNGstate();
 	LL.clear();
 
-} // End citconlog2
+} // End citconlog2_linear
 
+
+
+// int main(){
+// 	double L[21]={1.96387762,1.06613806,0.83068195,0.34737967,0.85337867,
+// 	              1.91008338,2.19601163,0.71162996,1.70248736,2.28007441,
+// 	              2.29072404,1.12939698,0.08595723,0.50560808,0.21515510,
+// 	              2.99320592,3.95411212,1.65949511,0.3480492,0.42198152,1.4989669
+// 				  };
+// 	double G[7]={1.0358568, 0.2239989, 0.8226976, 1.6192803, 0.5902434, 0.2211189, 0.2239989};
+// 	double T[7]={0.3388589, 0.3488783, 0.5985051, 0.8396380, 1.5046606, 0.6423783, 0.5985051};
+// 	int maxit=100;
+// 	int nrow=7;
+// 	int ncol=3;
+// 	double pval=0.0, pval1=0.0, pval2=0.0, pval3=0.0, pval4=0.0;
+// 	citconlog2_linear(L,G,T,nrow,ncol,pval,pval1,pval2,pval3,pval4,maxit);
+// }
