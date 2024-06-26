@@ -1,5 +1,5 @@
-#' @name CITpkg
-#' @useDynLib CITpkg
+#' @name cit
+#' @useDynLib cit
 #' @importFrom Rcpp sourceCpp
 #' @exportPattern "^[[:alpha:]]+"
 NULL
