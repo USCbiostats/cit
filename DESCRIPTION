@@ -1,8 +1,8 @@
 Package: cit
 Type: Package
 Title: Causal Inference Test
-Version: 2.3.1
-Date: 2021-05-21
+Version: 2.4.0
+Date: 2024-06-26
 Authors@R: person("Joshua", "Millstein", email = "joshua.millstein@usc.edu", role =
 	c("aut", "cre"), comment = c(ORCID="0000-0001-7961-8943"))
 Description: A likelihood-based hypothesis testing approach is implemented for
@@ -19,9 +19,17 @@ Description: A likelihood-based hypothesis testing approach is implemented for
   a single variable but may be a design matrix representing multiple variables.
 SystemRequirements: gsl (with development libraries libgsl-dev)
 License: Artistic-2.0
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.1
 LazyLoad: yes
 Suggests: tinytest
 Depends: R (>= 3.5.0)
 BugReports: https://github.com/USCbiostats/cit/issues
 URL: https://github.com/USCbiostats/cit
+LinkingTo: 
+    Rcpp
+Imports: 
+    Rcpp
+
 
