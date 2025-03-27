@@ -18,7 +18,7 @@ Author: Joshua Millstein [aut, cre] (<https://orcid.org/0000-0001-7961-8943>)
 Maintainer: Joshua Millstein <joshua.millstein@usc.edu>
 Repository: CRAN
 Date/Publication: 2024-10-11 11:20:06 UTC
-RoxygenNote: 7.3.1
+RoxygenNote: 7.3.2
 LinkingTo: 
     Rcpp
 Imports: 

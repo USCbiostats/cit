@@ -55,14 +55,13 @@ gsl_matrix* removeCollinearColumns(gsl_matrix *X, int &new_rank, int samplesize)
     //     }
     // }
 
-    std::vector<int> transfer(num_columns);
-    for (int i = 0; i < num_columns; i++) {
-        transfer[gsl_permutation_get(p, i)]=i;
-    }
 
     for (int i = 0; i < num_columns; i++) {
+        // if(num_columns == 18){
+        // std::cout<<gsl_permutation_get(p, i)<<"th value is: "<<gsl_matrix_get(QR, i, i)<<std::endl;
+        //  }
         if (fabs(gsl_matrix_get(QR, i, i)) >= tolerance) {
-            keepColumns.push_back(transfer[i]);
+            keepColumns.push_back(gsl_permutation_get(p, i));
         }
     }
 

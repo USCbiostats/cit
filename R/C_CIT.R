@@ -129,6 +129,8 @@ cit.bp.v1 = function(L,
     if (!aa)
       stop("Error: rows of CG must equal rows of T.")
   }
+  if (!is.null(perm.index) && nrow(L) != nrow(perm.index))
+    stop("Error: rows of perm.index must equal rows of L.")
   L = ms_f(L)
   G = ms_f(G)
   T = ms_f(T)
@@ -190,6 +192,7 @@ cit.bp.v1 = function(L,
 
   } else {
     # End if n.perm == 0
+
 
     if (is.null(perm.index)) {
       perm.index = matrix(NA, nrow = nrow(L), ncol = n.perm)
@@ -645,6 +648,8 @@ cit.bp.v2 = function(L,
     if (!aa)
       stop("Error: rows of CG must equal rows of T.")
   }
+  if (!is.null(perm.index) && nrow(L) != nrow(perm.index))
+    stop("Error: rows of perm.index must equal rows of L.")
 
   L = ms_f(L)
   G = ms_f(G)
@@ -733,6 +738,7 @@ cit.bp.v2 = function(L,
 
   } else {
     # End if n.perm == 0
+
 
     aa = dim(G)[2] + dim(T)[2]
     if (aa != 2)
@@ -887,6 +893,8 @@ cit.bp.m.v1 = function(L,
     if (!aa)
       stop("Error: rows of CG must equal rows of T.")
   }
+  if (!is.null(perm.index) && nrow(L) != nrow(perm.index))
+    stop("Error: rows of perm.index must equal rows of L.")
 
   L = ms_f(L)
   G = ms_f(G)
@@ -1149,6 +1157,8 @@ cit.bp.m.v2 = function(L,
     if (!aa)
       stop("Error: rows of CG must equal rows of T.")
   }
+  if (!is.null(perm.index) && nrow(L) != nrow(perm.index))
+    stop("Error: rows of perm.index must equal rows of L.")
 
   L = ms_f(L)
   G = ms_f(G)
@@ -1608,6 +1618,8 @@ cit.cp.v1 = function(L,
     if (!aa)
       stop("Error: rows of CG must equal rows of T.")
   }
+  if (!is.null(perm.index) && nrow(L) != nrow(perm.index))
+    stop("Error: rows of perm.index must equal rows of L.")
   L = ms_f(L)
   G = ms_f(G)
   T = ms_f(T)
@@ -1809,6 +1821,8 @@ cit.cp.v2 = function(L,
     if (!aa)
       stop("Error: rows of CG must equal rows of T.")
   }
+  if (!is.null(perm.index) && nrow(L) != nrow(perm.index))
+    stop("Error: rows of perm.index must equal rows of L.")
 
   L = ms_f(L)
   G = ms_f(G)
@@ -2055,6 +2069,8 @@ cit.cp.m.v1 = function(L,
     if (!aa)
       stop("Error: rows of CG must equal rows of T.")
   }
+  if (!is.null(perm.index) && nrow(L) != nrow(perm.index))
+    stop("Error: rows of perm.index must equal rows of L.")
 
   L = ms_f(L)
   G = ms_f(G)
@@ -2314,6 +2330,8 @@ cit.cp.m.v2 = function(L,
     if (!aa)
       stop("Error: rows of CG must equal rows of T.")
   }
+  if (!is.null(perm.index) && nrow(L) != nrow(perm.index))
+    stop("Error: rows of perm.index must equal rows of L.")
 
   L = ms_f(L)
   G = ms_f(G)
