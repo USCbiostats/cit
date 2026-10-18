@@ -1,0 +1,8 @@
+src/*.o
+src/*.so
+src/*.dll
+.Rhistory
+.Rapp.history
+.DS_Store
+*.Rcheck/
+*.tar.gz
