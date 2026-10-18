@@ -1,35 +1,26 @@
-Package: cit
+Package: CITpkg
 Type: Package
 Title: Causal Inference Test
-Version: 2.4.0
-Date: 2024-06-26
+Version: 3.0.0
 Authors@R: person("Joshua", "Millstein", email = "joshua.millstein@usc.edu", role =
 	c("aut", "cre"), comment = c(ORCID="0000-0001-7961-8943"))
-Description: A likelihood-based hypothesis testing approach is implemented for
-  assessing causal mediation. Described in Millstein, Chen, and Breton (2016),
-  <DOI:10.1093/bioinformatics/btw135>, it could be used to test for mediation
-  of a known causal association between a DNA variant, the 'instrumental variable',
-  and a clinical outcome or phenotype by gene expression or DNA methylation, the
-  potential mediator. Another example would be testing mediation of the effect
-  of a drug on a clinical outcome by the molecular target. The hypothesis test
-  generates a p-value or permutation-based FDR value with confidence intervals
-  to quantify uncertainty in the causal inference. The outcome can be represented
-  by either a continuous or binary variable, the potential mediator is continuous,
-  and the instrumental variable can be continuous or binary and is not limited to
-  a single variable but may be a design matrix representing multiple variables.
+Description: A likelihood-based hypothesis testing approach is implemented for assessing causal mediation. Described in Millstein, Chen, and Breton (2016), <DOI:10.1093/bioinformatics/btw135>, it could be used to test for mediation of a known causal association between a DNA variant, the 'instrumental variable', and a clinical outcome or phenotype by gene expression or DNA methylation, the potential mediator. Another example would be testing mediation of the effect of a drug on a clinical outcome by the molecular target. The hypothesis test generates a p-value or permutation-based FDR value with confidence intervals to quantify uncertainty in the causal inference. The outcome can be represented by either a continuous or binary variable or survival information, the potential mediator is continuous, and the instrumental variable can be continuous or binary and is not limited to a single variable but may be a design matrix representing multiple variables.
 SystemRequirements: gsl (with development libraries libgsl-dev)
 License: Artistic-2.0
-Encoding: UTF-8
-Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.3.1
 LazyLoad: yes
-Suggests: tinytest
-Depends: R (>= 3.5.0)
+Encoding: UTF-8
+Depends: R (>= 4.3.0)
 BugReports: https://github.com/USCbiostats/cit/issues
 URL: https://github.com/USCbiostats/cit
+NeedsCompilation: yes
+Packaged: 2024-10-11 10:28:32 UTC; mingzhiye
+Author: Joshua Millstein [aut, cre] (<https://orcid.org/0000-0001-7961-8943>)
+Maintainer: Joshua Millstein <joshua.millstein@usc.edu>
+Repository: CRAN
+Date/Publication: 2024-10-11 11:20:06 UTC
+RoxygenNote: 7.3.2
 LinkingTo: 
     Rcpp
 Imports: 
-    Rcpp
-
-
+    Rcpp,
+    survival

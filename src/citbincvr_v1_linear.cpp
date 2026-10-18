@@ -16,57 +16,70 @@
 using namespace Rcpp;
 using namespace std;
 
+
 /*
 C: matrix of continuous adjustment covariates for T
 L: matrix of continuous instrumental variables
 G: matrix of candidate causal mediators
 T: matrix of 0/1 variables
+CG: matrix of continuous covariates for T
 Programmer: Joshua Millstein
 */
 
+// NP
+
 // [[Rcpp::export]]
-void citbincvr_linear( Rcpp::NumericVector L, Rcpp::NumericVector G, Rcpp::NumericVector T, Rcpp::NumericVector C, int &maxit, int &nrow,
-	int &ncol, int &ncolc, Rcpp::NumericVector pval1, Rcpp::NumericVector pval2, Rcpp::NumericVector pval3, Rcpp::NumericVector pval4, Rcpp::NumericVector pval3nc, int &rseed)
-{
-	unsigned seed = rseed;
-	int rw, cl, i, rind, df, df1, df2, nobs, ip, npos, nperm, nmiss, stride;
-	double rss2, rss3, rss5, F, pv, pvp, tmp, rhs, maxp, testval;
-	double *designmat, *phenovec;
-	bool aa, bb, cc, dd, converged;
-	const int firstloop = 1000;
-	const int posno = 20;
-	const double alpha = .1;
-	vector<vector<double> > LL;
-	vector<vector<double> > CC;
-	vector<double> pvec;
-	vector<double> gpred;
-	vector<double> gresid;
-	gsl_matrix *Lm, *cov, *X, *Cm;
-	gsl_vector *Gm, *Tm, *Gp, *c;
+void citbincvr_linear(Rcpp::NumericVector L, Rcpp::NumericVector G, Rcpp::NumericVector T, Rcpp::NumericVector C, Rcpp::NumericVector CG, 
+    int &maxit, int &nrow, int &ncol, int &ncolc, int &ncolct, Rcpp::NumericVector pval1, Rcpp::NumericVector pval2, Rcpp::NumericVector pval3, 
+    Rcpp::NumericVector pval4, Rcpp::NumericVector pval3nc, int &rseed) {
 
-	designmat = new double[nrow * (ncol + ncolc + 2)];
-	phenovec = new double[nrow];
-	
-	LL.resize( nrow );
-	CC.resize( nrow );
-	
-	GetRNGstate();
-	
-	for(rw = 0; rw < nrow; rw++) {
-		LL[rw].resize( ncol );	
-		CC[rw].resize( ncolc );
-	}
+    unsigned seed = rseed;
+    int rw, cl, i, rind, df, nobs, ip, npos, nperm, nmiss, stride;
+    double rss5, pv, pvp, tmp, rhs, maxp, testval;
+    double *designmat, *phenovec;
+    bool aa, bb, cc, dd, converged;
+    const int firstloop = 2000;
+    const int posno = 20;
+    const double alpha = .1;
+    vector<vector<double>> LL;
+    vector<vector<double>> CC;
+    vector<vector<double>> CGG;
+    vector<double> pvec;
+    vector<double> gpred;
+    vector<double> gresid;
+    gsl_matrix *Lm, *Cm, *X, *cov;
+    gsl_vector *Gm, *Tm, *Gp, *c;
 
-	for(cl = 0; cl < ncol; cl++) {
-		for(rw = 0; rw < nrow; rw++) {
-			LL[rw][cl] = L[rw + nrow * cl];
-		}
-	}
-	for(cl = 0; cl < ncolc; cl++) {
-		for(rw = 0; rw < nrow; rw++) {
-			CC[rw][cl] = C[rw + nrow * cl];
-		}
-	}
+    designmat = new double[nrow * (ncol + ncolc + ncolct + 2)];
+    phenovec = new double[nrow];
+    
+    LL.resize(nrow);
+    CC.resize(nrow);
+    CGG.resize(nrow);
+
+    GetRNGstate();
+    
+    for (rw = 0; rw < nrow; rw++) {
+        LL[rw].resize(ncol);
+        CC[rw].resize(ncolc);
+        CGG[rw].resize(ncolct);
+    }
+
+    for (cl = 0; cl < ncol; cl++) {
+        for (rw = 0; rw < nrow; rw++) {
+            LL[rw][cl] = L[rw + nrow * cl];
+        }
+    }
+    for (cl = 0; cl < ncolc; cl++) {
+        for (rw = 0; rw < nrow; rw++) {
+            CC[rw][cl] = C[rw + nrow * cl];
+        }
+    }
+    for (cl = 0; cl < ncolct; cl++) {
+        for (rw = 0; rw < nrow; rw++) {
+            CGG[rw][cl] = CG[rw + nrow * cl];
+        }
+    }
 	
 // create analysis vectors w/no missing data
 		nobs = 0;
@@ -89,7 +102,9 @@ void citbincvr_linear( Rcpp::NumericVector L, Rcpp::NumericVector G, Rcpp::Numer
 			 }
 		}   // End for rw          
 
-		Cm = gsl_matrix_alloc (nobs, ncolc);
+		if(ncolc > 0){
+			Cm = gsl_matrix_alloc (nobs, ncolc);
+		}
 		Lm = gsl_matrix_alloc (nobs, ncol);
 		Gm = gsl_vector_alloc (nobs);
 		Tm = gsl_vector_alloc (nobs);
@@ -159,58 +174,88 @@ void citbincvr_linear( Rcpp::NumericVector L, Rcpp::NumericVector G, Rcpp::Numer
 		pv = ( converged ) ? pv : std::numeric_limits<double>::quiet_NaN();
 		pvec.push_back( pv );  // pval for T ~ G|L,C, 9 if it did not converge, p2
 
-		// fit model G ~ T
-		X = gsl_matrix_alloc (nobs,2);
-		for(rw = 0; rw < nobs; rw++) {
-			gsl_matrix_set(X, rw, 0, 1.0);  // intercept
-			gsl_matrix_set(X, rw, 1, gsl_vector_get (Tm, rw));
-		}
-		c = gsl_vector_alloc (2);
-		cov = gsl_matrix_alloc (2, 2);
-		gsl_multifit_linear_workspace * work = gsl_multifit_linear_alloc (nobs, 2);
-		gsl_multifit_linear (X, Gm, c, cov, &rss2, work);
-		gsl_multifit_linear_free (work);
-		gsl_matrix_free (X);
-		gsl_matrix_free (cov);
-		gsl_vector_free (c);
 
-		// fit model G ~ L + T
-		X = gsl_matrix_alloc (nobs, ip + 1);
-		for(rw = 0; rw < nobs; rw++) {
-			gsl_matrix_set(X, rw, 0, 1.0);      // intercept
-			for(cl = 0; cl < ncol; cl++) {
-                  gsl_matrix_set(X, rw, cl + 1, gsl_matrix_get (Lm, rw, cl));
-		     }
-		     gsl_matrix_set(X, rw, ip, gsl_vector_get (Tm, rw)); 
-		}
-		c = gsl_vector_alloc (ip + 1);
-		cov = gsl_matrix_alloc (ip + 1, ip + 1);
-		work = gsl_multifit_linear_alloc (nobs, ip + 1);
-		gsl_multifit_linear (X, Gm, c, cov, &rss3, work);
-		gsl_multifit_linear_free (work);
-		gsl_matrix_free (X);
-		gsl_matrix_free (cov);
-		gsl_vector_free (c);
-		df1 = ncol;
-		df2 = nobs - ip -1;
-		F = df2*(rss2-rss3)/(rss3*df1);
-		pv = gsl_cdf_fdist_Q(F, df1, df2);
-		pvec.push_back( pv ); // pval for G ~ L|T, p3
+
+		// fit model G ~ L + T + CG, L could be reduced
+		gsl_multifit_linear_workspace *work;
+		rind=0;
+		int dncol=ncolct + ncol + 1 + 1; // CG + L + T + Intercept
+		for (rw = 0; rw < nrow; rw++)
+		{
+
+			aa = 1;
+			aa = (G[rw] != -9999) ? aa : 0;
+			for (cl = 0; cl < ncol; cl++)
+			{
+				aa = (LL[rw][cl] != -9999) ? aa : 0;
+			}
+			for (cl = 0; cl < ncolct; cl++)
+			{
+				aa = (CGG[rw][cl] != -9999) ? aa : 0;
+			}
+			if (aa)
+			{
+				phenovec[rind] = G[rw];
+				designmat[rind * dncol] = 1; // intercept
+				designmat[rind * dncol + 1] = T[rw]; // T
+				for (cl = 0; cl < ncolct; cl++) // CG
+				{
+					designmat[rind * dncol + 2 + cl] = CGG[rw][cl];
+				}
+				for (cl = 0; cl < ncol; cl++)
+				{
+					designmat[rind * dncol + ncolct + 2 + cl] = LL[rw][cl];
+				}
+				rind++;
+			} // end if aa
+		} // end for rw
+
+		df=ncol;
+		converged = linearRegCompare(pv, phenovec, designmat, rind, dncol, df);
+		if (!converged)
+			Rcpp::Rcout << "Warning: Cannot Converge when doing regression for calculating P-value." << std::endl;
+		pv = (converged) ? pv : std::numeric_limits<double>::quiet_NaN();
+		pvec.push_back(pv); // pval for G ~ L + T + CG, L could be reduced, p3
+
+
+
 
 		// fit model T ~ C + G + L to test L 
-		for(rw = 0; rw < nobs; rw++) {
-		   designmat[ rw * stride  ] = 1;      // intercept
-		   for(cl = 0; cl < ncolc; cl++) {
-          		designmat[ rw * stride + 1 + cl  ]  = gsl_matrix_get (Cm, rw, cl);
-		   }
-		   designmat[ rw * stride + ncolc + 1  ] = gsl_vector_get(Gm, rw );
-			for(cl = 0; cl < ncol; cl++) {
-          		designmat[ rw * stride + ncolc + 2 + cl  ]  = gsl_matrix_get (Lm, rw, cl);
-		   }
-		}
+		rind=0;
+		dncol=2+ncolc+ncol;
+		for (rw = 0; rw < nrow; rw++)
+		{
+
+			aa = 1;
+			aa = (T[rw] != -9999) ? aa : 0;
+			aa = (G[rw] != -9999) ? aa : 0;
+			for (cl = 0; cl < ncol; cl++)
+			{
+				aa = (LL[rw][cl] != -9999) ? aa : 0;
+			}
+			for (cl = 0; cl < ncolc; cl++)
+			{
+				aa = (CC[rw][cl] != -9999) ? aa : 0;
+			}
+			if (aa)
+			{
+				phenovec[rind] = T[rw];
+				designmat[rind * dncol] = 1; // intercept
+				designmat[rind * dncol + 1] = G[rw]; // G
+				for (cl = 0; cl < ncolc; cl++) // C
+				{
+					designmat[rind * dncol + 2 + cl] = CC[rw][cl];
+				}
+				for (cl = 0; cl < ncol; cl++)// L
+				{
+					designmat[rind * dncol + ncolct + 2 + cl] = LL[rw][cl];
+				}
+				rind++;
+			} // end if aa
+		} // end for rw
 		
 		df = ncol;
-		converged = linearRegCompare( pv, phenovec, designmat, nobs, stride, df );
+		converged = linearRegCompare( pv, phenovec, designmat, rind, dncol, df );
 		if(!converged)Rcpp::Rcout<< "Warning: Cannot Converge when doing regression for calculating P-value." << std::endl;
 		pv = ( converged ) ? pv : std::numeric_limits<double>::quiet_NaN();    // p-value for T ~ L|G + C
 		pval3nc[0] = pv; // pvalue to be used for non-centrality parameter
@@ -250,7 +295,8 @@ void citbincvr_linear( Rcpp::NumericVector L, Rcpp::NumericVector G, Rcpp::Numer
 		for(i = 0; i < firstloop; i++){
 			// randomly permute residuals
             
-            shuffle( gresid.begin(), gresid.end(), std::default_random_engine(seed) );			
+            shuffle( gresid.begin(), gresid.end(), std::default_random_engine(seed) );
+			seed+=1;			
 			// compute G* based on marginal L effects and permuted residuals
 			for(rw = 0; rw < nobs; rw++) {
 				gsl_vector_set(Gp, rw, gpred[rw] + gresid[rw] );
@@ -292,7 +338,8 @@ void citbincvr_linear( Rcpp::NumericVector L, Rcpp::NumericVector G, Rcpp::Numer
 				
 				// randomly permute residuals
 				
-				shuffle( gresid.begin(), gresid.end(), std::default_random_engine(seed) );				
+				shuffle( gresid.begin(), gresid.end(), std::default_random_engine(seed) );	
+				seed+=1;			
 				// compute G* based on marginal L effects and permuted residuals
 				for(rw = 0; rw < nobs; rw++) {
 					gsl_vector_set(Gp, rw, gpred[rw] + gresid[rw] );
@@ -324,7 +371,7 @@ void citbincvr_linear( Rcpp::NumericVector L, Rcpp::NumericVector G, Rcpp::Numer
 			} // end 'while' permutation loop
 		} // End if
 		pv = 1.0 * npos / nperm;
-		
+
 		pvec.push_back(pv); // pval for L ind T|G
 
 		pval1[0] = pvec[0]; // pval for T ~ L
@@ -338,7 +385,7 @@ void citbincvr_linear( Rcpp::NumericVector L, Rcpp::NumericVector G, Rcpp::Numer
 		gsl_matrix_free (Lm);
 		gsl_vector_free (Gm);
 		gsl_vector_free (Tm);
-		gsl_matrix_free (Cm);
+		if(ncolc > 0){gsl_matrix_free(Cm);}
 		gsl_vector_free (Gp);
 		
 	delete [] designmat;
@@ -346,5 +393,7 @@ void citbincvr_linear( Rcpp::NumericVector L, Rcpp::NumericVector G, Rcpp::Numer
 	
 	PutRNGstate();
 	LL.clear();
+	CC.clear();
+	CGG.clear();
 
 } // End citbincvr_linear

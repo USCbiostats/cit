@@ -1,3 +1,2 @@
-CXX_STD=CXX14
 PKG_LIBS = $(shell gsl-config --libs)
 PKG_CPPFLAGS = $(shell gsl-config --cflags)
