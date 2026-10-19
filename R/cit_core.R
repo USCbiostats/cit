@@ -8,10 +8,21 @@
 ##   4. L ind T | G                see test4.R
 ## p_cit is the maximum of the component p-values (intersection-union test).
 ##
+## Missing data: each test uses the rows complete for its own variables
+## (test 1: L, T, CT; test 2: L, G, T, CT; test 3: L, G, T, CG; test 4: all).
+##
 ## v2 (robust = TRUE, single mediator, linear or binary outcome): test 3 is
 ## referred to a non-central F whose non-centrality is the method-of-moments
 ## estimate from the statistic for L in T ~ CT + G + L (the observed test 4
 ## statistic), so that a pair cannot be called causal in both directions.
+## Test 3 then uses the test 4 rows, so both statistics come from the same data.
+##
+## Permutations: permutation j is one reordering of all n rows, applied to L in
+## tests 1 and 3 (and in the v2 non-centrality), to G in test 2 and to the
+## mediator-model residuals in test 4, so dependence among tests, and among CITs
+## sharing a perm.index, is preserved. In tests 1-3 the variable is permuted
+## first (missing values travel with their rows) and incomplete rows are dropped
+## afterwards; test 4 restricts the permutation to its rows (restrict_perm).
 
 pnames <- c("p_cit", "p_TassocL", "p_TassocGgvnL", "p_GassocLgvnT", "p_LindTgvnG")
 
@@ -25,82 +36,79 @@ cit_core <- function(family, L, G, T, E = NULL, CT = NULL, CG = NULL, robust = F
     stop("robust = TRUE (CIT v2) is not yet available for multiple mediators; use robust = FALSE.", call. = FALSE)
   if (robust && family == "cox")
     stop("robust = TRUE does not apply to cit.cox, which has no test 3.", call. = FALSE)
-  if (family == "logistic" && !all(d$T %in% c(0, 1)))
+  if (family == "logistic" && !all(d$T %in% c(0, 1, NA)))
     stop("'T' must be coded 0/1 for cit.bp.", call. = FALSE)
-  if (family == "cox" && !all(d$E %in% c(0, 1)))
+  if (family == "cox" && !all(d$E %in% c(0, 1, NA)))
     stop("'E' must be coded 0/1 (1 = event).", call. = FALSE)
-  if (d$n < ncol(d$L) + ncol(cbind(d$CT, d$CG, d$G)) + 4)
+  if (sum(Reduce(`&`, d$ok)) < ncol(d$L) + ncol(cbind(d$CT, d$CG, d$G)) + 4)
     stop("too few complete observations.", call. = FALSE)
 
   with_seed(rseed, {
     if (!is.null(perm.index)) {
-      perm.index <- check_perm_index(perm.index, d$n.all)
-      n.perm <- ncol(perm.index)
-    } else if (n.perm > 0) {
-      perm.index <- random_perms(d$n.all, n.perm)
+      perm <- check_perm_index(perm.index, d$n.all)
+    } else {
+      perm <- random_perms(d$n.all, n.perm)
     }
-    perm <- if (n.perm > 0) restrict_perm(perm.index, d$keep) else matrix(integer(0), d$n, 0)
     run_cit(family, d, robust, test4, maxit, n.resampl, perm)
   })
 }
 
 run_cit <- function(family, d, robust, test4, maxit, n.resampl, perm) {
-  n <- d$n; P <- ncol(perm)
-  y <- if (family == "cox") survival::Surv(d$T, d$E) else d$T
-  one <- if (family == "cox") NULL else rep(1, n)
-  AT <- cbind(one, d$CT); if (is.null(AT)) AT <- matrix(0, n, 0)    # outcome-model base
-  AG <- cbind(1, d$T, d$CG)                                           # test-3 base
+  P <- ncol(perm); ok <- d$ok
   has3 <- family != "cox"
+  sub <- function(x, r) if (is.null(x)) NULL else x[r, , drop = FALSE]
+  yv <- function(r) if (family == "cox") survival::Surv(d$T[r], d$E[r]) else d$T[r]
+  AT <- function(r) {                                   # outcome-model base
+    A <- cbind(if (family != "cox") rep(1, sum(r)), sub(d$CT, r))
+    if (is.null(A)) matrix(0, sum(r), 0) else A
+  }
+  r4 <- Reduce(`&`, ok)                                 # rows for test 4
 
-  comp <- function(Lx, Gx) {
-    t1 <- otest(family, y, AT, cbind(AT, Lx))
-    t2 <- otest(family, y, cbind(AT, d$L), cbind(AT, d$L, Gx))
-    t3 <- if (!has3) NULL
-          else if (ncol(d$G) > 1) wilks_test(d$G, AG, cbind(AG, Lx))
-          else ftest_lin(drop(d$G), AG, cbind(AG, Lx))
-    list(t1 = t1, t2 = t2, t3 = t3)
+  ## components 1-3 with instrument Lx and mediator Gx in test 2 (permuted or not)
+  comp <- function(Lx, okL, Gx, okG) {
+    r1 <- okL & ok$T & ok$CT
+    A1 <- AT(r1)
+    t1 <- otest(family, yv(r1), A1, cbind(A1, sub(Lx, r1)))
+    r2 <- ok$L & okG & ok$T & ok$CT
+    A2 <- cbind(AT(r2), sub(d$L, r2))
+    t2 <- otest(family, yv(r2), A2, cbind(A2, sub(Gx, r2)))
+    if (!has3) return(c(t1[["p"]], t2[["p"]]))
+    r3 <- okL & ok$G & ok$T & ok$CG
+    if (robust) r3 <- r3 & ok$CT
+    AG <- cbind(1, d$T[r3], sub(d$CG, r3))
+    G3 <- sub(d$G, r3); X3 <- cbind(AG, sub(Lx, r3))
+    t3 <- if (ncol(G3) > 1) wilks_test(G3, AG, X3) else ftest_lin(drop(G3), AG, X3)
+    p3 <- t3[["p"]]
+    if (robust) {                     # non-centrality from the same rows and the same Lx
+      s <- t4_setup(family, sub_data(d, r3, Lx))
+      p3 <- p3_v2(t3, t4_observed(s), t4_df(s))
+    }
+    c(t1[["p"]], t2[["p"]], p3)
   }
 
-  ## observed components and test-4 statistic
-  s4 <- t4_setup(family, d)
-  with_L <- function(Lx) {               # test-4 setup with instrument Lx
-    sj <- s4
-    sj$L <- Lx[, independent_cols(cbind(s4$A, d$G), Lx), drop = FALSE]
-    sj
-  }
-  obs <- comp(d$L, d$G)
-  stat4 <- t4_observed(s4)
-  p3 <- if (has3) obs$t3[["p"]] else NULL
-  if (robust) p3 <- p3_v2(obs$t3, stat4, t4_df(s4))
-
-  ## permuted components: L permuted for tests 1 and 3, G for test 2;
-  ## for v2 the non-centrality comes from the same permuted L
+  obs <- comp(d$L, ok$L, d$G, ok$G)
   pc <- lapply(seq_len(P), function(j) {
     pj <- perm[, j]
-    cj <- comp(d$L[pj, , drop = FALSE], d$G[pj, , drop = FALSE])
-    p3j <- if (has3) cj$t3[["p"]] else NULL
-    if (robust) {
-      sj <- with_L(d$L[pj, , drop = FALSE])
-      p3j <- p3_v2(cj$t3, t4_observed(sj), t4_df(sj))
-    }
-    c(cj$t1[["p"]], cj$t2[["p"]], p3j)
+    comp(d$L[pj, , drop = FALSE], ok$L[pj], d$G[pj, , drop = FALSE], ok$G[pj])
   })
 
   ## test 4
-  maxp <- max(obs$t1[["p"]], obs$t2[["p"]], p3)
+  s4 <- t4_setup(family, sub_data(d, r4))
+  stat4 <- t4_observed(s4)
+  perm4 <- if (P > 0) restrict_perm(perm, r4) else matrix(integer(0), s4$n, 0)
   if (test4 == "empirical") {
-    obs_perm <- if (P > 0) t4_stats(s4, perm) else numeric(0)
-    r4 <- t4_empirical(s4, stat4, obs_perm, maxp, maxit)
+    obs_perm <- if (P > 0) t4_stats(s4, perm4) else numeric(0)
+    res4 <- t4_empirical(s4, stat4, obs_perm, max(obs), maxit)
   } else {
-    r4 <- t4_parametric(s4, stat4, perm, n.resampl)
+    res4 <- t4_parametric(s4, stat4, perm4, n.resampl)
   }
 
-  out <- c(obs$t1[["p"]], obs$t2[["p"]], p3, r4$p)
+  out <- c(obs, res4$p)
   nm <- if (has3) pnames[-1] else pnames[c(2, 3, 5)]
   res <- c(max(out), out); names(res) <- c("p_cit", nm)
   if (P == 0) return(res)
 
-  pm <- cbind(do.call(rbind, pc), r4$p_perm)
+  pm <- cbind(do.call(rbind, pc), res4$p_perm)
   pm <- cbind(apply(pm, 1, max), pm)
   df <- as.data.frame(rbind(res, pm), row.names = FALSE)
   names(df) <- names(res)

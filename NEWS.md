@@ -28,8 +28,14 @@
   lambda = F df1 (df2 - 2) / df2 - df1 (2.3.2 used df2 - df1 in place of df2 - 2;
   identical for two instruments, slightly different otherwise).
 * The empirical test 4 p-value is (r + 1) / (B + 1) and cannot be 0.
-* Observations with any missing value are removed once, so all component tests use
-  the same observations (2.3.2 `cit.cp()` used the available cases for each test).
+* Each component test uses the observations complete for its own variables, as
+  `cit.cp()` did in 2.3.2 (test 1: L, T, CT; test 2: L, G, T, CT; test 3: L, G, T,
+  CG; test 4: all). With `robust = TRUE`, test 3 uses the test 4 observations.
+* In permutation mode, each permutation is one reordering of all n observations,
+  applied to every component test (L in tests 1 and 3 and in the v2 non-centrality,
+  G in test 2, mediator-model residuals in test 4). In tests 1-3 the variable is
+  permuted before incomplete observations are removed, so a shared `perm.index`
+  gives the same permutation in every test and every CIT call.
 * Permutation-mode test 3 in `cit.cp()` now permutes L (2.3.2 permuted G).
 * Random numbers come from R, so `set.seed()` and `rseed` make every p-value
   reproducible; `rseed` no longer changes the caller's random number stream.

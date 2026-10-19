@@ -34,11 +34,11 @@ check_perm_index <- function(perm.index, n) {
   perm.index
 }
 
-## Restrict permutations of all n rows to the complete-case rows `keep`.
-## Where a kept row's source row is also kept, the pairing is preserved; the
-## remaining kept rows receive the unused kept sources in order. With no
-## missing data this returns perm.index unchanged, so permutations stay
-## aligned across tests that share a perm.index.
+## Restrict permutations of all n rows to the rows `keep` (used for test 4,
+## whose resampled residuals exist only for its complete rows). Where a kept
+## row's source row is also kept, the pairing is preserved; the remaining kept
+## rows receive the unused kept sources in order. With no missing data this
+## returns perm.index unchanged.
 restrict_perm <- function(perm.index, keep) {
   idx <- which(keep)
   apply(perm.index, 2, function(p) {
@@ -49,7 +49,9 @@ restrict_perm <- function(perm.index, keep) {
   })
 }
 
-## Assemble and clean the inputs: matrices, row checks, complete cases.
+## Assemble and check the inputs. Rows are not dropped here: each component
+## test uses the rows complete for its own variables (see run_cit), so `ok`
+## records which rows are complete for each variable.
 prep_data <- function(L, G, T, CT, CG, E = NULL) {
   L <- as_dmat(L, "L"); G <- as_dmat(G, "G"); T <- as_dmat(T, "T")
   CT <- as_dmat(CT, "CT"); CG <- as_dmat(CG, "CG"); E <- as_dmat(E, "E")
@@ -59,10 +61,17 @@ prep_data <- function(L, G, T, CT, CG, E = NULL) {
     x <- get(nm)
     if (!is.null(x) && nrow(x) != n) stop(sprintf("rows of %s must equal rows of T.", nm), call. = FALSE)
   }
-  keep <- stats::complete.cases(L, G, T, CT, CG, E)
-  sub <- function(x) if (is.null(x)) NULL else x[keep, , drop = FALSE]
-  list(L = sub(L), G = sub(G), T = drop(sub(T)), CT = sub(CT), CG = sub(CG),
-       E = if (is.null(E)) NULL else drop(sub(E)), keep = keep, n.all = n, n = sum(keep))
+  cc <- function(x) if (is.null(x)) rep(TRUE, n) else stats::complete.cases(x)
+  ok <- list(L = cc(L), G = cc(G), T = cc(T) & cc(E), CT = cc(CT), CG = cc(CG))
+  list(L = L, G = G, T = drop(T), CT = CT, CG = CG, E = if (is.null(E)) NULL else drop(E),
+       ok = ok, n.all = n)
+}
+
+## the data restricted to rows `r`, with instrument Lx (all n rows)
+sub_data <- function(d, r, Lx = d$L) {
+  sub <- function(x) if (is.null(x)) NULL else x[r, , drop = FALSE]
+  list(L = sub(Lx), G = sub(d$G), T = d$T[r], CT = sub(d$CT), CG = sub(d$CG),
+       E = if (is.null(d$E)) NULL else d$E[r], n = sum(r))
 }
 
 ## columns of X whose pivot falls within the numerical rank of cbind(base, X)
