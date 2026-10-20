@@ -1,6 +1,8 @@
 ## User-facing functions. Argument order through `rseed` matches cit 2.3.2, so
 ## positional calls written for CRAN still work; `C` is kept as a deprecated
 ## name for `CT` (in 2.3.2 the covariates entered the outcome models only).
+## All three return a data frame: one row without permutations, otherwise one
+## row per permutation after the observed row.
 
 ct_alias <- function(CT, C) {
   if (is.null(C)) return(CT)
@@ -31,11 +33,9 @@ cit.bp <- function(L, G, T, CT = NULL, maxit = 10000, n.perm = 0, perm.index = N
                    test4 = c("empirical", "parametric"), n.resampl = 50, C = NULL) {
   CT <- ct_alias(CT, C); test4 <- match.arg(test4)
   check_args(maxit, n.resampl, n.perm)
-  res <- cit_core("logistic", L, G, T, CT = CT, CG = CG, robust = robust, test4 = test4,
-                  maxit = maxit, n.resampl = n.resampl, n.perm = n.perm,
-                  perm.index = perm.index, rseed = rseed)
-  # as in 2.3.2, cit.bp returns a one-row data frame when n.perm = 0
-  if (is.data.frame(res)) res else as.data.frame(as.list(res))
+  cit_core("logistic", L, G, T, CT = CT, CG = CG, robust = robust, test4 = test4,
+           maxit = maxit, n.resampl = n.resampl, n.perm = n.perm,
+           perm.index = perm.index, rseed = rseed)
 }
 
 cit.cox <- function(L, G, T, E, CT = NULL, n.resampl = 50, n.perm = 0, perm.index = NULL,

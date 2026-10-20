@@ -58,7 +58,18 @@
 ## Compatibility
 
 * Argument order up to `rseed` is unchanged from 2.3.2. `C` is accepted with a
-  deprecation warning. Output names are unchanged (`p_LindTgvnG`); without
-  permutations `cit.cp()` and `cit.cox()` return a named vector and `cit.bp()` a
-  one-row data frame, as in 2.3.2.
+  deprecation warning. Output names are unchanged (`p_LindTgvnG`).
+* **Breaking change:** all three functions return a data frame. Without
+  permutations it has one row, as `cit.bp()` did in 2.3.2; `cit.cp()` previously
+  returned a named vector. Code such as `r[["p_cit"]]` and `r$p_cit` works with
+  every function; `r["p_cit"]` or `r[1]` on a `cit.cp()` result now gives a
+  one-column data frame rather than a number.
 * `fdr.cit()` accepts results from all three functions.
+
+# cit 2.3.0 (2021-05-19)
+
+* Fixed memory leaks with gsl (freeing memory).
+* Fixed a bug in cit.bp() when using C. It was creating design matrices of
+  the wrong size. That was causing memory leaks.
+* Revamp for returning to CRAN.
+* Adding a few tests for cit.bp().

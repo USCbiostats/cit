@@ -45,7 +45,7 @@ Each component test uses the observations complete for its own variables: test 1
 If permutations are conducted, the results are returned as a data frame in which each row represents an analysis using a unique permutation, except the first row (perm = 0), which has results from the observed data. Each permutation is a single reordering of the n observations, applied to L in tests 1 and 3 (and, with \code{robust = TRUE}, in the statistic that gives the test 3 non-centrality), to G in test 2, and to the mediator-model residuals in test 4, so that dependence among the component tests, and among CITs that share a \code{perm.index}, is preserved. In tests 1 to 3 the variable is permuted before observations with missing values are removed, so missing values move with their rows; in test 4 the permutation is restricted to the test 4 observations, keeping each pairing whose source observation is complete. These results can be aggregated across tests and passed to \code{\link{fdr.cit}}.
 }
 \value{
-A data frame. If \code{n.perm = 0} it has one row (as in earlier versions); otherwise it has a first column \code{perm} (0 for the observed data, then 1, ..., n.perm). Columns:
+A data frame. If \code{n.perm = 0} it has one row; otherwise it has a first column \code{perm} (0 for the observed data, then 1, ..., n.perm). Columns:
   \item{p_cit}{CIT (omnibus) p-value.}
   \item{p_TassocL}{component p-value for the test of association between T and L.}
   \item{p_TassocGgvnL}{component p-value for the test of association between T and G given L.}

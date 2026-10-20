@@ -112,7 +112,7 @@ run_cit <- function(family, d, robust, test4, maxit, n.resampl, perm) {
   out <- c(obs, res4$p)
   nm <- if (has3) pnames[-1] else pnames[c(2, 3, 5)]
   res <- c(max(out), out); names(res) <- c("p_cit", nm)
-  if (P == 0) return(res)
+  if (P == 0) return(as.data.frame(as.list(res)))     # one row, as cit.bp did in 2.3.2
 
   pm <- cbind(do.call(rbind, pc), res4$p_perm)
   pm <- cbind(apply(pm, 1, max), pm)
