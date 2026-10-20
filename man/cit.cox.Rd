@@ -19,10 +19,10 @@ cit.cox(L, G, T, E, CT = NULL, n.resampl = 50, n.perm = 0, perm.index = NULL,
   \item{CT}{Vector or n x p matrix of adjustment covariates for the models with \code{T} as the outcome (tests 1, 2 and 4).}
   \item{n.resampl}{Number of null instances of the statistic for the last test used to estimate the null distribution when \code{test4 = "parametric"} (Millstein et al. 2009). Ignored for the empirical test.}
   \item{n.perm}{If greater than 0, \code{n.perm} permutations of each component test are conducted, generating results under the null for use with \code{\link{fdr.cit}}.}
-  \item{perm.index}{Optional n x n.perm matrix whose columns are permutations of \code{1:n}. To account for dependencies among tests when computing FDR confidence intervals, the same permutations must be applied to every CIT in the analysis; pass the same \code{perm.index} to each call. Rows refer to all n observations, including any with missing values.}
+  \item{perm.index}{Optional n x n.perm matrix whose columns are permutations of \code{1:n}. To account for dependencies among tests when computing FDR confidence intervals, the same permutations must be applied to every CIT in the analysis; pass the same \code{perm.index} to each call. Rows refer to all n observations, including any with missing values. When supplied, the number of permutations is \code{ncol(perm.index)} and \code{n.perm} is not used.}
   \item{rseed}{Optional integer seed. When supplied, results are reproducible and the caller's random number stream is left unchanged. When \code{NULL}, the current stream is used, so \code{set.seed()} before the call also makes results reproducible.}
   \item{CG}{Vector or n x p matrix of adjustment covariates for the models with \code{G} as the outcome (the mediator model used to generate null data for the last test).}
-  \item{test4}{How the p-value for the last test is obtained from null data: \code{"empirical"} (default) counts null statistics; \code{"parametric"} fits a non-central F distribution (Millstein et al. 2009).}
+  \item{test4}{How the p-value for the last test is obtained from null data: \code{"empirical"} (default) counts null statistics; \code{"parametric"} fits a non-central chi-square distribution to the likelihood-ratio statistics (Millstein et al. 2009).}
   \item{maxit}{Maximum number of null statistics for the empirical version of the last test.}
 }
 \details{

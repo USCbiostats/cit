@@ -25,16 +25,21 @@ t4_setup <- function(family, d) {
   n <- d$n
   A <- if (family == "cox") d$CT else cbind(rep(1, n), d$CT)
   if (is.null(A)) A <- matrix(0, n, 0)
+  # keep linearly independent columns only (as lm() does for tests 1-3): A, then
+  # G given A, then L given A and G
+  A <- A[, independent_cols(matrix(0, n, 0), A), drop = FALSE]
+  G <- d$G[, independent_cols(A, d$G), drop = FALSE]
   BG <- cbind(1, d$L, d$CG)                         # G model: G ~ L + CG
   qg <- qr(BG, tol = 1e-7)
-  Ghat <- qr.fitted(qg, d$G); Gres <- qr.resid(qg, d$G)
-  Lk <- d$L[, independent_cols(cbind(A, d$G), d$L), drop = FALSE]
+  Ghat <- qr.fitted(qg, G); Gres <- qr.resid(qg, G)
+  Lk <- d$L[, independent_cols(cbind(A, G), d$L), drop = FALSE]
   list(family = family, y = d$T, E = d$E, A = A, L = Lk,
        Ghat = as.matrix(Ghat), Gres = as.matrix(Gres), n = n)
 }
 
 ## statistics for the columns of `perm` (n x B, 1-based row indices)
 t4_stats <- function(s, perm) {
+  if (ncol(s$L) == 0) return(rep(NA_real_, ncol(perm)))   # L not estimable given CT and G
   if (s$family == "cox") {
     y <- survival::Surv(s$y, s$E)
     return(apply(perm, 2, function(p) {
@@ -100,7 +105,7 @@ t4_para_p <- function(obs, st, df) {
 ## permuted p-value for column j treats statistic j as observed (leave-one-out)
 t4_parametric <- function(s, obs, perm, n.resampl) {
   P <- ncol(perm)
-  R <- max(n.resampl, P)
+  R <- max(n.resampl, P, if (P > 0) 4L else 3L)   # leave-one-out keeps >= 3
   st <- t4_stats(s, cbind(perm, random_perms(s$n, R - P)))
   df <- t4_df(s)
   p <- t4_para_p(obs, st, df)

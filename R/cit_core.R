@@ -40,12 +40,18 @@ cit_core <- function(family, L, G, T, E = NULL, CT = NULL, CG = NULL, robust = F
     stop("'T' must be coded 0/1 for cit.bp.", call. = FALSE)
   if (family == "cox" && !all(d$E %in% c(0, 1, NA)))
     stop("'E' must be coded 0/1 (1 = event).", call. = FALSE)
-  if (sum(Reduce(`&`, d$ok)) < ncol(d$L) + ncol(cbind(d$CT, d$CG, d$G)) + 4)
+  ncl <- function(x) if (is.null(x)) 0L else ncol(x)
+  npar <- max(1 + ncl(d$CT) + ncol(d$L) + m,          # T ~ CT + L + G
+              2 + ncl(d$CG) + ncol(d$L))              # G ~ T + CG + L
+  if (sum(Reduce(`&`, d$ok)) < npar + 2)
     stop("too few complete observations.", call. = FALSE)
 
   with_seed(rseed, {
     if (!is.null(perm.index)) {
       perm <- check_perm_index(perm.index, d$n.all)
+      if (n.perm > 0 && n.perm != ncol(perm))
+        warning(sprintf("n.perm = %d ignored; using the %d permutations in 'perm.index'.",
+                        as.integer(n.perm), ncol(perm)), call. = FALSE)
     } else {
       perm <- random_perms(d$n.all, n.perm)
     }
