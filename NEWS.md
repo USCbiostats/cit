@@ -15,9 +15,10 @@
   component with the wrong sign is set to 1. `sign.pattern = FALSE` gives the
   two-sided components of 2.3.2.
 
-* `cit.cox()` for a censored survival outcome. The test of G given T is omitted:
-  the mediator must be measured before the events occur, which rules out reverse
-  causation by design (see `?cit.cox`).
+* `cit.cox()` for a censored survival outcome. Test 3 is the test of G given the
+  event indicator (L in G ~ E + CG + L), which guards against the event changing G
+  (for example, tissue collected at or after the event). `test3 = FALSE` omits it
+  when G was measured before any event could occur (see `?cit.cox`).
 * Multiple mediators: `G` may be a matrix of mediators tested jointly (test 3 uses
   Wilks' lambda).
 * Separate covariates for the outcome models (`CT`, formerly `C`) and for the

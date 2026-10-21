@@ -18,8 +18,8 @@ check_args <- function(maxit, n.resampl, n.perm) {
   if (!is.numeric(n.perm) || n.perm < 0) stop("'n.perm' must be 0 or a positive integer.", call. = FALSE)
 }
 
-check_flag <- function(x) {
-  if (!is.logical(x) || length(x) != 1 || is.na(x)) stop("'sign.pattern' must be TRUE or FALSE.", call. = FALSE)
+check_flag <- function(x, nm = deparse(substitute(x))) {
+  if (!is.logical(x) || length(x) != 1 || is.na(x)) stop(sprintf("'%s' must be TRUE or FALSE.", nm), call. = FALSE)
 }
 
 cit.cp <- function(L, G, T, CT = NULL, n.resampl = 50, n.perm = 0, perm.index = NULL,
@@ -46,10 +46,10 @@ cit.bp <- function(L, G, T, CT = NULL, maxit = 10000, n.perm = 0, perm.index = N
 
 cit.cox <- function(L, G, T, E, CT = NULL, n.resampl = 50, n.perm = 0, perm.index = NULL,
                     rseed = NULL, CG = NULL, test4 = c("empirical", "parametric"),
-                    maxit = 10000) {
+                    maxit = 10000, test3 = TRUE) {
   test4 <- match.arg(test4)
-  check_args(maxit, n.resampl, n.perm)
+  check_args(maxit, n.resampl, n.perm); check_flag(test3)
   cit_core("cox", L, G, T, E = E, CT = CT, CG = CG, robust = FALSE, test4 = test4,
            maxit = maxit, n.resampl = n.resampl, n.perm = n.perm,
-           perm.index = perm.index, rseed = rseed)
+           perm.index = perm.index, rseed = rseed, test3 = test3)
 }

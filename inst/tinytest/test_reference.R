@@ -37,13 +37,25 @@ L <- d$L; G <- d$G[, 1]; T <- d$T; CT <- d$CT
 expect_equal(r[["p_TassocL"]], anova(glm(T ~ CT, family = binomial), glm(T ~ CT + L, family = binomial), test = "LRT")$`Pr(>Chi)`[2])
 expect_equal(r[["p_GassocLgvnT"]], anova(lm(G ~ T), lm(G ~ T + L))$`Pr(>F)`[2])
 
-# survival outcome: three components
+# survival outcome: four components; test 3 is L in G ~ E + CG + L
 d <- sim(3, family = "cox")
-r <- cit.cox(d$L, d$G, d$T, d$E, d$CT, rseed = 1, maxit = 200)
-expect_equal(names(r), c("p_cit", "p_TassocL", "p_TassocGgvnL", "p_LindTgvnG"))
+r <- cit.cox(d$L, d$G, d$T, d$E, d$CT, CG = d$CG, rseed = 1, maxit = 200)
+expect_equal(names(r), c("p_cit", "p_TassocL", "p_TassocGgvnL", "p_GassocLgvnT", "p_LindTgvnG"))
 f0 <- survival::coxph(survival::Surv(d$T, d$E) ~ d$CT + d$L)
 f1 <- survival::coxph(survival::Surv(d$T, d$E) ~ d$CT + d$L + d$G)
 expect_equal(r[["p_TassocGgvnL"]], pchisq(2 * (f1$loglik[2] - f0$loglik[2]), 1, lower.tail = FALSE), tolerance = 1e-6)
+E <- d$E; G <- d$G[, 1]; L <- d$L; CG <- d$CG
+expect_equal(r[["p_GassocLgvnT"]], anova(lm(G ~ E + CG), lm(G ~ E + CG + L))$`Pr(>F)`[2])
+expect_equal(r[["p_cit"]], max(unlist(r[-1])))
+# test3 = FALSE: the three components of tests 1, 2 and 4, unchanged
+r0 <- cit.cox(d$L, d$G, d$T, d$E, d$CT, CG = d$CG, rseed = 1, maxit = 200, test3 = FALSE)
+expect_equal(names(r0), c("p_cit", "p_TassocL", "p_TassocGgvnL", "p_LindTgvnG"))
+expect_equal(unlist(r0[c("p_TassocL", "p_TassocGgvnL")]), unlist(r[c("p_TassocL", "p_TassocGgvnL")]))
+expect_error(cit.cox(d$L, d$G, d$T, d$E, test3 = NA), "test3")
+# permutations with test 3: one row per permutation, no missing values
+rp <- cit.cox(d$L, d$G, d$T, d$E, n.perm = 3, rseed = 1, test4 = "parametric")
+expect_equal(dim(rp), c(4L, 6L))
+expect_false(anyNA(rp))
 
 # multiple mediators: test 3 is Wilks' lambda
 d <- sim(4, m = 2)

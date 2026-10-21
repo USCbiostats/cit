@@ -9,7 +9,7 @@
 \usage{
 cit.cox(L, G, T, E, CT = NULL, n.resampl = 50, n.perm = 0, perm.index = NULL,
         rseed = NULL, CG = NULL, test4 = c("empirical", "parametric"),
-        maxit = 10000)
+        maxit = 10000, test3 = TRUE)
 }
 \arguments{
   \item{L}{Vector or n x p design matrix representing the instrumental variable(s).}
@@ -24,30 +24,33 @@ cit.cox(L, G, T, E, CT = NULL, n.resampl = 50, n.perm = 0, perm.index = NULL,
   \item{CG}{Vector or n x p matrix of adjustment covariates for the models with \code{G} as the outcome (the mediator model used to generate null data for the last test).}
   \item{test4}{How the p-value for the last test is obtained from null data: \code{"empirical"} (default) counts null statistics; \code{"parametric"} fits a non-central chi-square distribution to the likelihood-ratio statistics (Millstein et al. 2009).}
   \item{maxit}{Maximum number of null statistics for the empirical version of the last test.}
+  \item{test3}{If \code{TRUE} (default), the CIT includes the test of G given the event indicator, which guards against reverse causation (see Details). \code{FALSE} omits it.}
 }
 \details{
-Let L denote the instrumental variable, G the potential mediator and T the outcome. For a survival outcome the CIT is an intersection-union test of three component conditions, each with its own p-value from a likelihood-ratio test in a Cox proportional hazards model (Efron ties):
+Let L denote the instrumental variable, G the potential mediator and T the outcome. For a survival outcome the CIT is an intersection-union test of four component conditions, each with its own p-value:
 \enumerate{
-  \item T is associated with L (\code{p_TassocL}; L in T ~ CT + L).
-  \item T is associated with G given L (\code{p_TassocGgvnL}; G in T ~ CT + L + G).
+  \item T is associated with L (\code{p_TassocL}; likelihood-ratio test for L in the Cox proportional hazards model T ~ CT + L, Efron ties).
+  \item T is associated with G given L (\code{p_TassocGgvnL}; likelihood-ratio test for G in the Cox model T ~ CT + L + G).
+  \item G is associated with L given the event indicator E (\code{p_GassocLgvnT}; F test for L in the linear model G ~ E + CG + L).
   \item The association between L and T given G is weaker than expected if G were not a mediator (\code{p_LindTgvnG}).
 }
-The test of G given T used for continuous and binary outcomes is omitted. That test guards against reverse causation (the outcome affecting the mediator). With a survival outcome the mediator must be measured before the events occur, which rules out reverse causation by design; users should confirm that this holds for their data.
+The third test guards against reverse causation, here the event changing G, as when tissue is collected at or after the event. If G depends on L only through the event, L and G are independent given E and the test does not reject. If G is measured before any event can occur, reverse causation is ruled out by design, and the test can be omitted with \code{test3 = FALSE}; \code{p_cit} is then the maximum of the other three components.
 
 The omnibus p-value, \code{p_cit}, is the maximum of the component p-values, representing the probability of the data if at least one of the component null hypotheses is true.
 
 The last test compares the observed likelihood-ratio statistic for L in the Cox model T ~ CT + G + L with statistics computed from null data in which G is replaced by G* = fitted(G ~ L + CG) + permuted residuals. G* keeps its association with L but has no link to T except through L, so these null data represent no mediation. The test is therefore a test for mediation, not for the absence of a direct effect of L on T: it can reject when part of the effect of L on T is mediated by G and part is direct. With \code{test4 = "empirical"}, the p-value is (r + 1) / (B + 1), where r of B null statistics are at or below the observed statistic; resampling begins with 1000 null statistics and continues, up to \code{maxit}, only while this p-value could determine \code{p_cit}. With \code{test4 = "parametric"}, \code{n.resampl} null statistics give a method-of-moments estimate of the non-centrality, lambda = mean(X*) - df, for a non-central chi-square distribution; each statistic is mapped to a normal score through the fitted distribution, and the p-value is the normal probability of the observed score given the mean and standard deviation of the null scores.
 
-Each component test uses the observations complete for its own variables: the first test uses L, T, E and CT; the second L, G, T, E and CT; the last all of L, G, T, E, CT and CG.
+Each component test uses the observations complete for its own variables: the first test uses L, T, E and CT; the second L, G, T, E and CT; the third L, G, T, E and CG; the last all of L, G, T, E, CT and CG.
 
-If permutations are conducted, the results are returned as a data frame in which each row represents an analysis using a unique permutation, except the first row (perm = 0), which has results from the observed data. Each permutation is a single reordering of the n observations, applied to L in the first test, to G in the second, and to the mediator-model residuals in the last, so that dependence among the component tests, and among CITs that share a \code{perm.index}, is preserved. In the first two tests the variable is permuted before observations with missing values are removed, so missing values move with their rows; in the last test the permutation is restricted to its observations, keeping each pairing whose source observation is complete. These results can be aggregated across tests and passed to \code{\link{fdr.cit}}.
+If permutations are conducted, the results are returned as a data frame in which each row represents an analysis using a unique permutation, except the first row (perm = 0), which has results from the observed data. Each permutation is a single reordering of the n observations, applied to L in the first and third tests, to G in the second, and to the mediator-model residuals in the last, so that dependence among the component tests, and among CITs that share a \code{perm.index}, is preserved. In the first three tests the variable is permuted before observations with missing values are removed, so missing values move with their rows; in the last test the permutation is restricted to its observations, keeping each pairing whose source observation is complete. These results can be aggregated across tests and passed to \code{\link{fdr.cit}}.
 }
 \value{
 A data frame. If \code{n.perm = 0} it has one row; otherwise it has a first column \code{perm} (0 for the observed data, then 1, ..., n.perm). Columns:
   \item{p_cit}{CIT (omnibus) p-value.}
   \item{p_TassocL}{component p-value for the test of association between T and L.}
   \item{p_TassocGgvnL}{component p-value for the test of association between T and G given L.}
-  \item{p_LindTgvnG}{component p-value for the third test, that the association between L and T given G is weaker than expected without mediation.}
+  \item{p_GassocLgvnT}{component p-value for the test of association between G and L given the event indicator (absent when \code{test3 = FALSE}).}
+  \item{p_LindTgvnG}{component p-value for the last test, that the association between L and T given G is weaker than expected without mediation.}
 }
 \references{
  Millstein J, Chen GK, Breton CV. 2016. cit: hypothesis testing software for mediation analysis in genomic applications. Bioinformatics. btw135. PMID: 27153715.
@@ -68,6 +71,7 @@ E <- rbinom(ss, 1, .8)
 
 cit.cox(L, G, T, E, maxit = 2000)
 cit.cox(L, G, T, E, test4 = "parametric")
+cit.cox(L, G, T, E, test4 = "parametric", test3 = FALSE)  # G measured before any event
 }
 \keyword{ htest }
 \keyword{ survival }

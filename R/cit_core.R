@@ -4,7 +4,9 @@
 ## CG covariates for G models):
 ##   1. T ~ L | CT                 association of T with L
 ##   2. T ~ G | L, CT              association of T with G given L
-##   3. G ~ L | T, CG              association of G with L given T   (not for Cox)
+##   3. G ~ L | T, CG              association of G with L given T
+##                                 (Cox: G ~ L | E, CG, given the event indicator;
+##                                 omitted with test3 = FALSE)
 ##   4. L ind T | G                see test4.R
 ## p_cit is the maximum of the component p-values (intersection-union test).
 ##
@@ -38,14 +40,14 @@ pnames <- c("p_cit", "p_TassocL", "p_TassocGgvnL", "p_GassocLgvnT", "p_LindTgvnG
 
 cit_core <- function(family, L, G, T, E = NULL, CT = NULL, CG = NULL, robust = FALSE,
                      test4 = "empirical", maxit = 10000, n.resampl = 50, n.perm = 0,
-                     perm.index = NULL, rseed = NULL, sign.pattern = FALSE) {
+                     perm.index = NULL, rseed = NULL, sign.pattern = FALSE, test3 = TRUE) {
   d <- prep_data(L, G, T, CT, CG, E)
   if (is.null(d$L) || ncol(d$L) < 1) stop("'L' must have at least one column.", call. = FALSE)
   m <- ncol(d$G)
   if (robust && m > 1)
     stop("robust = TRUE (CIT v2) is not yet available for multiple mediators; use robust = FALSE.", call. = FALSE)
   if (robust && family == "cox")
-    stop("robust = TRUE does not apply to cit.cox, which has no test 3.", call. = FALSE)
+    stop("robust = TRUE (CIT v2) is not available for cit.cox.", call. = FALSE)
   if (family == "logistic" && !all(d$T %in% c(0, 1, NA)))
     stop("'T' must be coded 0/1 for cit.bp.", call. = FALSE)
   if (family == "cox" && !all(d$E %in% c(0, 1, NA)))
@@ -65,13 +67,13 @@ cit_core <- function(family, L, G, T, E = NULL, CT = NULL, CG = NULL, robust = F
     } else {
       perm <- random_perms(d$n.all, n.perm)
     }
-    run_cit(family, d, robust, test4, maxit, n.resampl, perm, sign.pattern)
+    run_cit(family, d, robust, test4, maxit, n.resampl, perm, sign.pattern, test3)
   })
 }
 
-run_cit <- function(family, d, robust, test4, maxit, n.resampl, perm, sign.pattern = FALSE) {
+run_cit <- function(family, d, robust, test4, maxit, n.resampl, perm, sign.pattern = FALSE, test3 = TRUE) {
   P <- ncol(perm); ok <- d$ok
-  has3 <- family != "cox"
+  has3 <- family != "cox" || test3
   sub <- function(x, r) if (is.null(x)) NULL else x[r, , drop = FALSE]
   yv <- function(r) if (family == "cox") survival::Surv(d$T[r], d$E[r]) else d$T[r]
   AT <- function(r) {                                   # outcome-model base
@@ -91,7 +93,7 @@ run_cit <- function(family, d, robust, test4, maxit, n.resampl, perm, sign.patte
     if (!has3) return(c(t1[["p"]], t2[["p"]]))
     r3 <- okL & ok$G & ok$T & ok$CG
     if (robust) r3 <- r3 & ok$CT
-    AG <- cbind(1, d$T[r3], sub(d$CG, r3))
+    AG <- cbind(1, if (family == "cox") d$E[r3] else d$T[r3], sub(d$CG, r3))
     G3 <- sub(d$G, r3); X3 <- cbind(AG, sub(Lx, r3))
     t3 <- if (ncol(G3) > 1) wilks_test(G3, AG, X3) else ftest_lin(drop(G3), AG, X3)
     p3 <- t3[["p"]]
