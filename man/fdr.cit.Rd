@@ -22,8 +22,10 @@
 }
 }
 \details{
-  For the initial cit.cp and cit.bp test computations, we suggest setting n.perm to 100 or greater for moderate numbers of tests, say 10s or 100s. Larger numbers of permutations will generate more precise FDR estimates but require substantial computation time. If a large number of tests, say 1000s, have been conducted, then n.perm can be as small as 10 and still generate good FDR estimates and confidence intervals. FDR confidence intervals are especially useful to quantify uncertainty when FDR value > 0.05. The over-dispersion parameter should be set to one if it is known that all tests are independent, however, this is rarely the case in typical multiple testing settings. The fdr.cit function can also be used with simulated data in order to generate power calculations. In this case the over-dispersion parameter may be estimated from pilot data or other datasets and fixed to the prior estimate using the c1 argument. The omnibus CIT FDR value combines the component test FDR values (four component tests for cit.cp and cit.bp, three for cit.cox) in an intersection-union type of approach analogous to the method used to generate the omnibus CIT p-value in cit.cp and cit.bp.
+  For the initial cit.cp and cit.bp test computations, we suggest setting n.perm to 100 or greater for moderate numbers of tests, say 10s or 100s. Larger numbers of permutations will generate more precise FDR estimates but require substantial computation time. If a large number of tests, say 1000s, have been conducted, then n.perm can be as small as 10 and still generate good FDR estimates and confidence intervals. FDR confidence intervals are especially useful to quantify uncertainty when FDR value > 0.05. The over-dispersion parameter should be set to one if it is known that all tests are independent, however, this is rarely the case in typical multiple testing settings. The fdr.cit function can also be used with simulated data in order to generate power calculations. In this case the over-dispersion parameter may be estimated from pilot data or other datasets and fixed to the prior estimate using the c1 argument. The omnibus CIT FDR value combines the component test FDR values (four component tests, or three for cit.cox with test3 = FALSE) in an intersection-union type of approach analogous to the method used to generate the omnibus CIT p-value.
   
+  \emph{Rationale for the omnibus q-value.} Each component q-value is a permutation-based tail-area FDR (Storey 2002, 2003; Millstein and Volfson 2013), evaluated at the test's own component p-value. The omnibus q-value is \eqn{q.cit = 1 - \prod_k (1 - q_k)}{q.cit = 1 - prod_k (1 - q_k)}. It can be justified under the two-groups model (Efron et al. 2001; Efron 2008), in which each hypothesis is null or non-null at random and its p-value is drawn given that status; under this model the positive FDR (pFDR) of a rejection region equals the probability that a hypothesis in the region is null (Storey 2003). Let \eqn{H = (H_1, \ldots, H_K)}{H = (H_1, ..., H_K)} be the null statuses of the K component hypotheses of a test. A CIT call is a false discovery when at least one component null holds (the composite null). Suppose (1) over the tests analysed together, the K component null statuses are mutually independent, and (2) given \eqn{H}, the component p-values are independent, with each \eqn{p_k} depending only on its own status \eqn{H_k}. Then \eqn{1 - \prod_k (1 - pFDR_k(t_k))}{1 - prod_k (1 - pFDR_k(t_k))} equals the pFDR of the intersection-union call set \eqn{\{p_1 \le t_1, \ldots, p_K \le t_K\}}{\{p_1 <= t_1, ..., p_K <= t_K\}}, and q.cit estimates it consistently when the component estimates are consistent. These conditions concern how component null statuses co-occur among the tests analysed together, which depends on how those tests were selected, and they can fail. If many tests are null for one component and strongly non-null for the others, the omnibus q-value can understate the FDR; if tests under the composite null tend to be null for every component, it can overstate it.
+
   It is important to be aware that there are certain conditions under which this permutation-based FDR is not stable. This includes the case where all observed tests achieve the significance level and the case where there are zero positive tests among the permuted results. In the latter case, we take the conservative approach of setting the number of positive permutation tests to one. Both these cases produce an NA for the upper confidence limit. The latter problem may be alleviated by increasing the number of permutations conducted.
 }
 \value{
@@ -38,7 +40,7 @@
   \item{q.TaGgvL }{component q-value (FDR) for the test of association between T and G|L}
   \item{q.ll.TaGgvL }{Lower 95 percent confidence limit (if cl=.95) for q.TaGgvL estimate}
   \item{q.ul.TaGgvL }{Upper 95 percent confidence limit (if cl=.95) for q.TaGgvL estimate}
-  \item{q.GaLgvT }{component q-value (FDR) for the test of association between G and L|T (absent for cit.cox results)}
+  \item{q.GaLgvT }{component q-value (FDR) for the test of association between G and L|T (for cit.cox results, G and L given the event indicator; absent with test3 = FALSE)}
   \item{q.ll.GaLgvT }{Lower 95 percent confidence limit (if cl=.95) for q.GaLgvT estimate}
   \item{q.ul.GaLgvT }{Upper 95 percent confidence limit (if cl=.95) for q.GaLgvT estimate}
   \item{q.LiTgvG }{component q-value (FDR) for test 4, that the association between L and T given G is weaker than expected without mediation}
@@ -49,6 +51,14 @@
 \references{
  Millstein J, Chen GK, Breton CV. 2016. cit: hypothesis testing software for mediation analysis in genomic applications. Bioinformatics. btw135. PMID: 27153715.
  Millstein J, Volfson D. 2013. Computationally efficient permutation-based confidence interval estimation for tail-area FDR. Frontiers in Genetics | Statistical Genetics and Methodology 4(179):1-11.
+
+ Efron B, Tibshirani R, Storey JD, Tusher V. 2001. Empirical Bayes analysis of a microarray experiment. Journal of the American Statistical Association 96(456):1151-1160.
+
+ Efron B. 2008. Microarrays, empirical Bayes and the two-groups model. Statistical Science 23(1):1-22.
+
+ Storey JD. 2002. A direct approach to false discovery rates. Journal of the Royal Statistical Society, Series B 64(3):479-498.
+
+ Storey JD. 2003. The positive false discovery rate: a Bayesian interpretation and the q-value. Annals of Statistics 31(6):2013-2035.
 }
 \author{
   Joshua Millstein

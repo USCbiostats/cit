@@ -119,7 +119,7 @@ fdr.q.para = function( pvals ){
 
 
 # compute FDR qvalues from output of cit.bp, cit.cp or cit.cox, organized in a list with each element the output for a specific test.
-# Generalised from 2.3.2: uses whichever component p-values are present (cit.cox has no test 3)
+# Generalised from 2.3.2: uses whichever component p-values are present (cit.cox with test3 = FALSE has no test 3)
 # and accepts the name p_TindLgvnG used by development versions for test 4.
 fdr.cit = function( cit.perm.list, cl=.95, c1=NA ){
 

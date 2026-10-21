@@ -93,6 +93,13 @@
   one-column data frame rather than a number.
 * `fdr.cit()` accepts results from all three functions.
 
+## Documentation
+
+* `?fdr.cit` states the conditions under which the omnibus q-value is justified
+  (two-groups model; component null statuses mutually independent; component
+  p-values independent given the statuses, each depending only on its own status),
+  with references for the two-groups model and the positive FDR.
+
 # cit 2.3.0 (2021-05-19)
 
 * Fixed memory leaks with gsl (freeing memory).
