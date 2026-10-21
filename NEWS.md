@@ -2,6 +2,19 @@
 
 ## New features
 
+* Sign-pattern CIT (`sign.pattern = TRUE`, the default in `cit.cp()` and `cit.bp()`
+  with a single instrument and a single mediator). Mediation now also requires the
+  estimates in tests 1-3 to agree in sign, sign(T ~ L) = sign(T ~ G | L) x
+  sign(G ~ L | T). The alternative is the union of the four sign patterns that
+  satisfy this; within the pattern supported by the data, tests 1-3 are one-sided.
+  Associations with the wrong sign (for example from a hidden confounder of G and T
+  that reverses test 3) no longer count as evidence for mediation, and when the
+  signs agree, tests 1-3 report half their two-sided p-values. The error rate is
+  controlled over the whole sign-null (proof for the test 2 and test 3 null faces,
+  simulation elsewhere). With `robust = TRUE` the two-sided p-values are kept and a
+  component with the wrong sign is set to 1. `sign.pattern = FALSE` gives the
+  two-sided components of 2.3.2.
+
 * `cit.cox()` for a censored survival outcome. The test of G given T is omitted:
   the mediator must be measured before the events occur, which rules out reverse
   causation by design (see `?cit.cox`).
@@ -21,6 +34,10 @@
   2.3.2.
 
 ## Changes in results
+
+* With a single instrument and a single mediator, `cit.cp()` and `cit.bp()` use the
+  sign-pattern components by default (see above); set `sign.pattern = FALSE` for the
+  2.3.2 components.
 
 * `cit.cp()` now uses the empirical test 4 by default. Use `test4 = "parametric"` for
   the 2.3.2 method.

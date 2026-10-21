@@ -9,7 +9,8 @@
 \usage{
 cit.bp(L, G, T, CT = NULL, maxit = 10000, n.perm = 0, perm.index = NULL,
        rseed = NULL, CG = NULL, robust = FALSE,
-       test4 = c("empirical", "parametric"), n.resampl = 50, C = NULL)
+       test4 = c("empirical", "parametric"), n.resampl = 50,
+       sign.pattern = TRUE, C = NULL)
 }
 \arguments{
   \item{L}{Vector or n x p design matrix representing the instrumental variable(s).}
@@ -24,6 +25,7 @@ cit.bp(L, G, T, CT = NULL, maxit = 10000, n.perm = 0, perm.index = NULL,
   \item{robust}{If \code{TRUE}, use CIT v2, in which test 3 is referred to a non-central F distribution (see Details). Recommended when reverse causation (T affecting G) is a concern. Available for a single mediator.}
   \item{test4}{How the test 4 p-value is obtained from null data: \code{"empirical"} (default) counts null statistics; \code{"parametric"} fits a non-central chi-square distribution to the likelihood-ratio statistics (Millstein et al. 2009).}
   \item{maxit}{Maximum number of null statistics for the empirical test 4.}
+  \item{sign.pattern}{If \code{TRUE} (default), mediation requires the estimates in tests 1 to 3 to agree in sign, and those tests are one-sided within the sign pattern supported by the data (see Details). Applies with a single instrument and a single mediator. \code{FALSE} gives the two-sided tests of cit 2.3.2.}
   \item{C}{Deprecated name for \code{CT}.}
 }
 \details{
@@ -40,6 +42,8 @@ Test 4 compares the observed likelihood-ratio statistic for L in the logistic re
 
 With \code{robust = TRUE} (CIT v2), the test 3 statistic is referred to a non-central F distribution whose non-centrality is the method-of-moments estimate, lambda = X - df, from the likelihood-ratio statistic X for L in the logistic regression T ~ CT + G + L. For a continuous outcome (\code{\link{cit.cp}}) the corresponding change guarantees that the CIT cannot conclude that G mediates the effect of L on T and also, with the roles of G and T exchanged (and CT and CG exchanged), that T mediates the effect of L on G; for a binary outcome the same construction is used, but the guarantee is approximate.
 
+With \code{sign.pattern = TRUE} (the default; single instrument and single mediator), mediation is also required to be consistent in sign: the estimates in tests 1 to 3 must satisfy sign(T ~ L) = sign(T ~ G given L) x sign(G ~ L given T), as they do when L affects G and G affects T. The alternative hypothesis is the union of the four sign patterns that satisfy this rule. For each pattern the three tests are one-sided in the pattern's direction, and the reported components are those of the pattern whose largest component is smallest. When the estimates agree in sign, tests 1 to 3 therefore report half their two-sided p-values; when they do not, at least one component is 0.5 or more and mediation is not inferred. Association with the wrong sign, as produced for example by a hidden confounder of G and T that reverses the association of G with L given T, no longer counts as evidence for mediation. With \code{robust = TRUE}, the components keep their two-sided p-values and a component whose sign disagrees is set to 1. When L or G has several columns the signs are not defined and \code{sign.pattern} has no effect. Use \code{sign.pattern = FALSE} for the two-sided components of cit 2.3.2.
+
 Each component test uses the observations complete for its own variables: test 1 uses L, T and CT; test 2 L, G, T and CT; test 3 L, G, T and CG; test 4 all of them. With \code{robust = TRUE}, test 3 uses the test 4 observations, so that the test 3 statistic and its non-centrality come from the same data.
 
 If permutations are conducted, the results are returned as a data frame in which each row represents an analysis using a unique permutation, except the first row (perm = 0), which has results from the observed data. Each permutation is a single reordering of the n observations, applied to L in tests 1 and 3 (and, with \code{robust = TRUE}, in the statistic that gives the test 3 non-centrality), to G in test 2, and to the mediator-model residuals in test 4, so that dependence among the component tests, and among CITs that share a \code{perm.index}, is preserved. In tests 1 to 3 the variable is permuted before observations with missing values are removed, so missing values move with their rows; in test 4 the permutation is restricted to the test 4 observations, keeping each pairing whose source observation is complete. These results can be aggregated across tests and passed to \code{\link{fdr.cit}}.
@@ -50,6 +54,7 @@ A data frame. If \code{n.perm = 0} it has one row; otherwise it has a first colu
   \item{p_TassocL}{component p-value for the test of association between T and L.}
   \item{p_TassocGgvnL}{component p-value for the test of association between T and G given L.}
   \item{p_GassocLgvnT}{component p-value for the test of association between G and L given T.}
+  With \code{sign.pattern = TRUE}, the components for tests 1 to 3 are the one-sided p-values of the selected sign pattern (see Details), and \code{p_cit} is the maximum of the reported components.
   \item{p_LindTgvnG}{component p-value for test 4, that the association between L and T given G is weaker than expected without mediation.}
 }
 \references{

@@ -1,11 +1,16 @@
 ## Nested-model tests used by the CIT components. Each returns
-## c(stat, df1, df2, p): an F test (linear), a likelihood-ratio chi-square
+## c(stat, df1, df2, p, sgn): an F test (linear), a likelihood-ratio chi-square
 ## (logistic, Cox; df2 = NA) or Wilks' lambda via Rao's F (multivariate).
+## sgn is the sign of the coefficient of the added column when exactly one
+## column is added (linear and logistic), otherwise NA.
 ## Degrees of freedom come from the ranks of the fitted designs, so collinear
 ## columns are dropped exactly as lm() and glm() drop them.
 
 na_test <- function(df1 = NA_real_, df2 = NA_real_)
-  c(stat = NA_real_, df1 = df1, df2 = df2, p = NA_real_)
+  c(stat = NA_real_, df1 = df1, df2 = df2, p = NA_real_, sgn = NA_real_)
+
+## sign of the last coefficient when one column is added; NA otherwise
+last_sign <- function(coef, df1) if (df1 == 1) unname(sign(coef[length(coef)])) else NA_real_
 
 ## linear outcome: F test for the columns of X1 not in X0
 ftest_lin <- function(y, X0, X1) {
@@ -14,7 +19,8 @@ ftest_lin <- function(y, X0, X1) {
   if (df1 < 1 || df2 < 1) return(na_test(df1, df2))
   rss0 <- sum(qr.resid(q0, y)^2); rss1 <- sum(qr.resid(q1, y)^2)
   F <- (max(rss0 - rss1, 0) / df1) / (rss1 / df2)
-  c(stat = F, df1 = df1, df2 = df2, p = pf(F, df1, df2, lower.tail = FALSE))
+  c(stat = F, df1 = df1, df2 = df2, p = pf(F, df1, df2, lower.tail = FALSE),
+    sgn = last_sign(qr.coef(q1, y), df1))
 }
 
 ## binary outcome: likelihood-ratio test from glm.fit deviances
@@ -26,7 +32,8 @@ lrt_logit <- function(y, X0, X1) {
   if (!f0$converged || !f1$converged)
     warning("logistic regression did not converge; the p-value may be unreliable", call. = FALSE)
   chi <- max(f0$deviance - f1$deviance, 0)
-  c(stat = chi, df1 = df1, df2 = NA_real_, p = pchisq(chi, df1, lower.tail = FALSE))
+  c(stat = chi, df1 = df1, df2 = NA_real_, p = pchisq(chi, df1, lower.tail = FALSE),
+    sgn = last_sign(f1$coefficients, df1))
 }
 
 ## survival outcome: Cox partial-likelihood ratio test (Efron ties); X0 may have 0 columns
@@ -42,7 +49,7 @@ lrt_cox <- function(y, X0, X1) {
   df1 <- f1$rank - f0$rank
   if (df1 < 1) return(na_test(df1))
   chi <- max(2 * (f1$loglik[length(f1$loglik)] - f0$loglik[length(f0$loglik)]), 0)
-  c(stat = chi, df1 = df1, df2 = NA_real_, p = pchisq(chi, df1, lower.tail = FALSE))
+  c(stat = chi, df1 = df1, df2 = NA_real_, p = pchisq(chi, df1, lower.tail = FALSE), sgn = NA_real_)
 }
 
 ## multivariate outcome Y (several mediators): Wilks' lambda with Rao's F,
@@ -64,7 +71,7 @@ wilks_test <- function(Y, X0, X1) {
   tmp3 <- if (tmp3 > 0) sqrt(((p * q)^2 - 4) / tmp3) else 1
   F <- ((lam^(-1 / tmp3) - 1) * (tmp1 * tmp3 - 2 * tmp2)) / p / q
   df1 <- p * q; df2 <- tmp1 * tmp3 - 2 * tmp2
-  c(stat = F, df1 = df1, df2 = df2, p = pf(F, df1, df2, lower.tail = FALSE))
+  c(stat = F, df1 = df1, df2 = df2, p = pf(F, df1, df2, lower.tail = FALSE), sgn = NA_real_)
 }
 
 ## dispatch on outcome family for the outcome (T) models

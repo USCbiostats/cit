@@ -18,24 +18,30 @@ check_args <- function(maxit, n.resampl, n.perm) {
   if (!is.numeric(n.perm) || n.perm < 0) stop("'n.perm' must be 0 or a positive integer.", call. = FALSE)
 }
 
+check_flag <- function(x) {
+  if (!is.logical(x) || length(x) != 1 || is.na(x)) stop("'sign.pattern' must be TRUE or FALSE.", call. = FALSE)
+}
+
 cit.cp <- function(L, G, T, CT = NULL, n.resampl = 50, n.perm = 0, perm.index = NULL,
                    rseed = NULL, CG = NULL, robust = FALSE,
-                   test4 = c("empirical", "parametric"), maxit = 10000, C = NULL) {
+                   test4 = c("empirical", "parametric"), maxit = 10000,
+                   sign.pattern = TRUE, C = NULL) {
   CT <- ct_alias(CT, C); test4 <- match.arg(test4)
-  check_args(maxit, n.resampl, n.perm)
+  check_args(maxit, n.resampl, n.perm); check_flag(sign.pattern)
   cit_core("linear", L, G, T, CT = CT, CG = CG, robust = robust, test4 = test4,
            maxit = maxit, n.resampl = n.resampl, n.perm = n.perm,
-           perm.index = perm.index, rseed = rseed)
+           perm.index = perm.index, rseed = rseed, sign.pattern = sign.pattern)
 }
 
 cit.bp <- function(L, G, T, CT = NULL, maxit = 10000, n.perm = 0, perm.index = NULL,
                    rseed = NULL, CG = NULL, robust = FALSE,
-                   test4 = c("empirical", "parametric"), n.resampl = 50, C = NULL) {
+                   test4 = c("empirical", "parametric"), n.resampl = 50,
+                   sign.pattern = TRUE, C = NULL) {
   CT <- ct_alias(CT, C); test4 <- match.arg(test4)
-  check_args(maxit, n.resampl, n.perm)
+  check_args(maxit, n.resampl, n.perm); check_flag(sign.pattern)
   cit_core("logistic", L, G, T, CT = CT, CG = CG, robust = robust, test4 = test4,
            maxit = maxit, n.resampl = n.resampl, n.perm = n.perm,
-           perm.index = perm.index, rseed = rseed)
+           perm.index = perm.index, rseed = rseed, sign.pattern = sign.pattern)
 }
 
 cit.cox <- function(L, G, T, E, CT = NULL, n.resampl = 50, n.perm = 0, perm.index = NULL,

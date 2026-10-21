@@ -8,6 +8,16 @@
 ##   4. L ind T | G                see test4.R
 ## p_cit is the maximum of the component p-values (intersection-union test).
 ##
+## Sign pattern (sign.pattern = TRUE, single instrument and single mediator,
+## linear or binary outcome): mediation requires the estimates of tests 1-3 to
+## agree in sign, sign(T~L) = sign(T~G|L) * sign(G~L|T). The alternative is the
+## union of the four sign patterns that satisfy this; for each pattern the tests
+## are one-sided in the pattern's direction, and the reported components are
+## those of the pattern with the smallest maximum (sign_pattern). When the
+## estimates agree, tests 1-3 report half their two-sided p-values; when they do
+## not, at least one component is >= 0.5. With robust = TRUE the components
+## keep their two-sided p-values and a component whose sign disagrees is 1.
+##
 ## Missing data: each test uses the rows complete for its own variables
 ## (test 1: L, T, CT; test 2: L, G, T, CT; test 3: L, G, T, CG; test 4: all).
 ##
@@ -28,7 +38,7 @@ pnames <- c("p_cit", "p_TassocL", "p_TassocGgvnL", "p_GassocLgvnT", "p_LindTgvnG
 
 cit_core <- function(family, L, G, T, E = NULL, CT = NULL, CG = NULL, robust = FALSE,
                      test4 = "empirical", maxit = 10000, n.resampl = 50, n.perm = 0,
-                     perm.index = NULL, rseed = NULL) {
+                     perm.index = NULL, rseed = NULL, sign.pattern = FALSE) {
   d <- prep_data(L, G, T, CT, CG, E)
   if (is.null(d$L) || ncol(d$L) < 1) stop("'L' must have at least one column.", call. = FALSE)
   m <- ncol(d$G)
@@ -55,11 +65,11 @@ cit_core <- function(family, L, G, T, E = NULL, CT = NULL, CG = NULL, robust = F
     } else {
       perm <- random_perms(d$n.all, n.perm)
     }
-    run_cit(family, d, robust, test4, maxit, n.resampl, perm)
+    run_cit(family, d, robust, test4, maxit, n.resampl, perm, sign.pattern)
   })
 }
 
-run_cit <- function(family, d, robust, test4, maxit, n.resampl, perm) {
+run_cit <- function(family, d, robust, test4, maxit, n.resampl, perm, sign.pattern = FALSE) {
   P <- ncol(perm); ok <- d$ok
   has3 <- family != "cox"
   sub <- function(x, r) if (is.null(x)) NULL else x[r, , drop = FALSE]
@@ -89,7 +99,9 @@ run_cit <- function(family, d, robust, test4, maxit, n.resampl, perm) {
       s <- t4_setup(family, sub_data(d, r3, Lx))
       p3 <- p3_v2(t3, t4_observed(s), t4_df(s))
     }
-    c(t1[["p"]], t2[["p"]], p3)
+    p <- c(t1[["p"]], t2[["p"]], p3)
+    if (sign.pattern) p <- sign_pattern(p, c(t1[["sgn"]], t2[["sgn"]], t3[["sgn"]]), halve = !robust)
+    p
   }
 
   obs <- comp(d$L, ok$L, d$G, ok$G)
@@ -127,4 +139,19 @@ p3_v2 <- function(t3, stat4, df4) {
   if (anyNA(t3[c("stat", "df1", "df2")]) || is.na(stat4)) return(NA_real_)
   lam <- ncp_mom(stat4, df4[["df1"]], df4[["df2"]])
   pnc(t3[["stat"]], t3[["df1"]], t3[["df2"]], lam, lower.tail = FALSE)
+}
+
+## Sign-pattern components for tests 1-3. p: two-sided p-values; s: signs of the
+## estimates (T~L, T~G|L, G~L|T). The patterns (gamma, beta, theta) with
+## gamma = beta * theta are the four sign-consistent alternatives; in each, a
+## component's one-sided p-value is p/2 if its sign matches and 1 - p/2 if not
+## (halve = FALSE: p and 1). Returns the components of the pattern whose largest
+## component is smallest. Signs that are undefined (several instruments or
+## mediators, or an inestimable coefficient) leave p unchanged.
+sign_pattern <- function(p, s, halve = TRUE) {
+  if (anyNA(p) || anyNA(s) || any(s == 0)) return(p)
+  pats <- rbind(c(1, 1, 1), c(-1, 1, -1), c(-1, -1, 1), c(1, -1, -1))
+  one <- function(q) if (halve) ifelse(s == q, p / 2, 1 - p / 2) else ifelse(s == q, p, 1)
+  cand <- t(apply(pats, 1, one))
+  cand[which.min(apply(cand, 1, max)), ]
 }
