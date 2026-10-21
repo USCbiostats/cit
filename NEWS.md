@@ -2,6 +2,15 @@
 
 ## New features
 
+* `cit.effects()` estimates the total, direct and indirect effects of L on T through G,
+  and the proportion mediated, with delta-method confidence intervals, for continuous
+  (mean difference), binary (odds ratio) and survival (hazard ratio) outcomes. It uses
+  the published regression estimators without an exposure-mediator interaction
+  (VanderWeele and Vansteelandt 2009, 2010; VanderWeele 2011; Valeri and VanderWeele
+  2013); the ratio scales assume a rare outcome. Results agree with the `regmedint`
+  package. The estimates need stronger assumptions than the CIT (no unmeasured
+  confounding of G and T); see `?cit.effects`.
+
 * Sign-pattern CIT (`sign.pattern = TRUE`, the default in `cit.cp()` and `cit.bp()`
   with a single instrument and a single mediator). Mediation now also requires the
   estimates in tests 1-3 to agree in sign, sign(T ~ L) = sign(T ~ G | L) x

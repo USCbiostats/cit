@@ -4,5 +4,5 @@ importFrom("stats", "anova", "binomial", "glm", "glm.fit", "na.exclude", "pchisq
            "qnorm", "sd", "var")
 
 export(
-	linreg, cit.cp, cit.bp, cit.cox, fdr.od, fdr.cit, iuq, fdr.q.para, fdr.q.perm
+	linreg, cit.cp, cit.bp, cit.cox, cit.effects, fdr.od, fdr.cit, iuq, fdr.q.para, fdr.q.perm
 )
