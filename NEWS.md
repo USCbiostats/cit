@@ -45,6 +45,16 @@
 
 ## Changes in results
 
+* `fdr.cit()`: the omnibus q-value (`q.cit` and its confidence limits) now evaluates
+  every component FDR at the test's omnibus p-value, the common threshold `p.cit`,
+  before combining them, so the rejection regions `{p.cit <= t}` are nested and
+  selecting `q.cit <= alpha` cuts a single ranked list, as with ordinary q-values.
+  2.3.2 evaluated each component at the test's own component p-value; those regions
+  differ between tests, and in simulations satisfying the conditions in `?fdr.cit`
+  the realized FDR of `q.cit <= 0.1` was about 0.26. The new `q.cit` is never smaller
+  than the 2.3.2 value for the same input (up to permutation step effects). The
+  component q-values are unchanged.
+
 * With a single instrument and a single mediator, `cit.cp()` and `cit.bp()` use the
   sign-pattern components by default (see above); set `sign.pattern = FALSE` for the
   2.3.2 components.
@@ -95,10 +105,10 @@
 
 ## Documentation
 
-* `?fdr.cit` states the conditions under which the omnibus q-value is justified
-  (two-groups model; component null statuses mutually independent; component
-  p-values independent given the statuses, each depending only on its own status),
-  with references for the two-groups model and the positive FDR.
+* `?fdr.cit` describes the omnibus q-value and states the conditions under which it
+  is justified (two-groups model; component null statuses mutually independent;
+  component p-values independent given the statuses, each depending only on its own
+  status), with references for the two-groups model and the positive FDR.
 
 # cit 2.3.0 (2021-05-19)
 

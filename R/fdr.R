@@ -183,13 +183,23 @@ fdr.cit = function( cit.perm.list, cl=.95, c1=NA ){
 		}
 	}
 
-	# p.cit
-	qcols = sapply( pnm.lst, `[`, 1 ); llcols = sapply( pnm.lst, `[`, 2 ); ulcols = sapply( pnm.lst, `[`, 3 )
+	# q.cit at a common threshold (3.0.0). Every component FDR is evaluated at the test's own
+	# omnibus p-value t = p_cit, i.e. for the nested rejection regions {p_cit <= t}, and combined
+	# by the intersection-union product; the running minimum below then gives a q-value for p_cit.
+	# (2.3.2 evaluated each component at the test's own component p-value; those regions differ
+	# between tests and are not nested, so selecting q.cit <= alpha did not control the FDR.)
 	for( tst in 1:nrow(obs) ){
-		fdrmat[ tst, "p.cit"  ] = obs[ tst, "p_cit" ]
-		fdrmat[ tst, "q.cit"  ] = iuq( fdrmat[ tst, qcols ] )
-		fdrmat[ tst, "q.cit.ll"  ] = iuq( fdrmat[ tst, llcols ] )
-		fdrmat[ tst, "q.cit.ul"  ] = iuq( fdrmat[ tst, ulcols ] )
+		pc = obs[ tst, "p_cit" ]
+		fdrmat[ tst, "p.cit" ] = pc
+		if( !is.na(pc) && pc < 1e-16 ) pc = 1e-16    # component p-values were floored at 1e-16 above
+		if( is.na(pc) || pc >= 1 ){ fdrmat[ tst, c("q.cit", "q.cit.ll", "q.cit.ul") ] = 1; next }
+		cq = sapply( pnms, function( pname ){
+			r = fdr.od( obs[, pname], perml, pname, nrow(obs), pc, cl=cl, od=c1 )[ 1:3 ]
+			ifelse( is.na(r), 1, r )
+		} )
+		fdrmat[ tst, "q.cit"  ] = iuq( cq[ 1, ] )
+		fdrmat[ tst, "q.cit.ll"  ] = iuq( cq[ 2, ] )
+		fdrmat[ tst, "q.cit.ul"  ] = iuq( cq[ 3, ] )
 	}
 
 	op = order(fdrmat[ , "p.cit" ])
