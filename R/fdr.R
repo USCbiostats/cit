@@ -186,8 +186,6 @@ fdr.cit = function( cit.perm.list, cl=.95, c1=NA ){
 	# q.cit at a common threshold (3.0.0). Every component FDR is evaluated at the test's own
 	# omnibus p-value t = p_cit, i.e. for the nested rejection regions {p_cit <= t}, and combined
 	# by the intersection-union product; the running minimum below then gives a q-value for p_cit.
-	# (2.3.2 evaluated each component at the test's own component p-value; those regions differ
-	# between tests and are not nested, so selecting q.cit <= alpha did not control the FDR.)
 	for( tst in 1:nrow(obs) ){
 		pc = obs[ tst, "p_cit" ]
 		fdrmat[ tst, "p.cit" ] = pc
