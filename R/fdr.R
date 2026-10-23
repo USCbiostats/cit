@@ -183,24 +183,34 @@ fdr.cit = function( cit.perm.list, cl=.95, c1=NA ){
 		}
 	}
 
-	# q.cit at a common threshold (3.0.0). Every component FDR is evaluated at the test's own
-	# omnibus p-value t = p_cit, i.e. for the nested rejection regions {p_cit <= t}, and combined
-	# by the intersection-union product; the running minimum below then gives a q-value for p_cit.
+	# q.cit on the calibrated scale (3.0.0). Each component p-value is mapped to its null
+	# distribution function, estimated from the permuted p-values pooled over tests, so that a
+	# common threshold u sits at the same null quantile for every component. For a test with
+	# calibrated omnibus value u = max_k F_k(p_k), each component FDR is evaluated over the tests
+	# with F_k(p_k) <= u, i.e. for the nested rejection regions {p.cit.cal <= u}, and combined by
+	# the intersection-union product; the running minimum below then gives a q-value for p.cit.cal.
+	cal = matrix( sapply( pnms, function( pname ){
+		pp = sort( unlist( lapply( perml, function( x ) x[, pname ] ) ) )
+		u = findInterval( obs[, pname ], pp ) / length( pp )
+		ifelse( is.na(u), 1, u )
+	} ), nrow=nrow(obs) )
+	pcal = apply( cal, 1, max )
 	for( tst in 1:nrow(obs) ){
-		pc = obs[ tst, "p_cit" ]
-		fdrmat[ tst, "p.cit" ] = pc
-		if( !is.na(pc) && pc < 1e-16 ) pc = 1e-16    # component p-values were floored at 1e-16 above
-		if( is.na(pc) || pc >= 1 ){ fdrmat[ tst, c("q.cit", "q.cit.ll", "q.cit.ul") ] = 1; next }
-		cq = sapply( pnms, function( pname ){
-			r = fdr.od( obs[, pname], perml, pname, nrow(obs), pc, cl=cl, od=c1 )[ 1:3 ]
+		fdrmat[ tst, "p.cit" ] = obs[ tst, "p_cit" ]
+		u = pcal[ tst ]
+		if( u >= 1 ){ fdrmat[ tst, c("q.cit", "q.cit.ll", "q.cit.ul") ] = 1; next }
+		cq = sapply( seq_along(pnms), function( k ){
+			thr = max( obs[ cal[, k] <= u, pnms[ k ] ] )    # largest observed p_k with F_k(p_k) <= u
+			r = fdr.od( obs[, pnms[ k ] ], perml, pnms[ k ], nrow(obs), thr, cl=cl, od=c1 )[ 1:3 ]
 			ifelse( is.na(r), 1, r )
 		} )
 		fdrmat[ tst, "q.cit"  ] = iuq( cq[ 1, ] )
 		fdrmat[ tst, "q.cit.ll"  ] = iuq( cq[ 2, ] )
 		fdrmat[ tst, "q.cit.ul"  ] = iuq( cq[ 3, ] )
 	}
+	fdrmat[ , "p.cit.cal" ] = pcal
 
-	op = order(fdrmat[ , "p.cit" ])
+	op = order(fdrmat[ , "p.cit.cal" ])
 	for(tst in 1:nrow(fdrmat)){
 		aa = fdrmat[ op[1:tst], "q.cit" ] > fdrmat[ op[tst], "q.cit" ]
 		fdrmat[ op[1:tst], "q.cit" ] = ifelse( aa, fdrmat[ op[tst], "q.cit" ], fdrmat[ op[1:tst], "q.cit" ] )
