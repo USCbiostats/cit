@@ -91,14 +91,18 @@ t4_empirical <- function(s, obs, obs_perm, maxp, maxit) {
   list(p = p, p_perm = pp, B = B)
 }
 
-## parametric p-value of `obs` given null statistics `st`
+## parametric p-value of `obs` given null statistics `st`. A statistic at the edge of the
+## support (e.g. exactly 0, after rounding, when the fitted non-centrality is 0) maps to an
+## infinite z and is left out of the mean and sd; p is kept above 0.
 t4_para_p <- function(obs, st, df) {
   st <- st[is.finite(st)]
   if (is.na(obs) || length(st) < 3) return(NA_real_)
   lam <- ncp_mom(mean(st), df[["df1"]], df[["df2"]])
   z <- z_nc(st, df[["df1"]], df[["df2"]], lam)
+  z <- z[is.finite(z)]
+  if (length(z) < 3) return(NA_real_)
   z0 <- z_nc(obs, df[["df1"]], df[["df2"]], lam)
-  pnorm(z0, mean = mean(z), sd = sd(z))
+  max(pnorm(z0, mean = mean(z), sd = sd(z)), .Machine$double.xmin)
 }
 
 ## parametric p-values; the first n.perm null statistics use perm.index, and the
