@@ -58,6 +58,12 @@
   sign-pattern components by default (see above); set `sign.pattern = FALSE` for the
   2.3.2 components.
 
+* Covariates: in 2.3.2, `C` entered only the models for T (tests 1, 2 and 4); test 3
+  (G ~ L + T) and the mediator model that generates test 4's null data (G ~ L) had
+  no covariates. In 3.0.0 these use `CG`. Supplying the same covariates as `CT` and
+  `CG` adjusts G as well as T, which can change results substantially when a
+  covariate affects G; `CG = NULL` (the default) reproduces the 2.3.2 models.
+
 * `cit.cp()` now uses the empirical test 4 by default. Use `test4 = "parametric"` for
   the 2.3.2 method.
 * The non-centrality in the parametric test 4 is the method-of-moments estimate
