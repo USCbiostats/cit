@@ -1,16 +1,8 @@
-useDynLib(cit,.registration=TRUE)
+useDynLib(cit, .registration = TRUE)
+importFrom(Rcpp, evalCpp)
+importFrom("stats", "anova", "binomial", "glm", "glm.fit", "na.exclude", "pchisq", "pf", "pnorm",
+           "qnorm", "sd", "var")
 
-export(cit.bp)
-export(cit.bp.m.v1)
-export(cit.bp.m.v2)
-export(cit.bp.v1)
-export(cit.bp.v2)
-export(cit.cp)
-export(cit.cp.m.v1)
-export(cit.cp.m.v2)
-export(cit.cp.v1)
-export(cit.cp.v2)
-exportPattern("^[[:alpha:]]+")
-importFrom(Rcpp,sourceCpp)
-
-importFrom("stats", "anova", "glm", "lm", "na.exclude", "pf", "pnorm", "qnorm", "resid", "sd", "var")
+export(
+	linreg, cit.cp, cit.bp, cit.cox, cit.effects, fdr.od, fdr.cit, iuq, fdr.q.para, fdr.q.perm
+)

@@ -3,8 +3,8 @@ note <- sprintf("R package version %s", meta$Version)
 
 citHeader("To cite cit in publications use:")
 
-citEntry(
-  entry  = "Article",
+bibentry(
+  bibtype  = "Article",
   title = "cit: hypothesis testing software for mediation analysis in genomic applications",
   author = c(
     person("Joshua", "Millstein", email = "joshua.millstein@usc.edu"),
