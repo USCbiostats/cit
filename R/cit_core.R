@@ -12,13 +12,12 @@
 ##
 ## Sign pattern (sign.pattern = TRUE, single instrument and single mediator,
 ## linear or binary outcome): mediation requires the estimates of tests 1-3 to
-## agree in sign, sign(T~L) = sign(T~G|L) * sign(G~L|T). The alternative is the
-## union of the four sign patterns that satisfy this; for each pattern the tests
-## are one-sided in the pattern's direction, and the reported components are
-## those of the pattern with the smallest maximum (sign_pattern). When the
-## estimates agree, tests 1-3 report half their two-sided p-values; when they do
-## not, at least one component is >= 0.5. With robust = TRUE the components
-## keep their two-sided p-values and a component whose sign disagrees is 1.
+## agree in sign, sign(T~L) = sign(T~G|L) * sign(G~L|T). The check is reported
+## as its own column, sign_ind (0 = signs agree, 1 = they do not, NA = an
+## estimate is 0 or inestimable), and enters p_cit with the components, so a disagreement gives
+## p_cit = 1 (sign_check). Tests 1-3 are one-sided in the direction of the
+## observed estimates (half their two-sided p-values); with robust = TRUE they
+## keep their two-sided p-values.
 ##
 ## Missing data: each test uses the rows complete for its own variables
 ## (test 1: L, T, CT; test 2: L, G, T, CT; test 3: L, G, T, CG; test 4: all).
@@ -74,6 +73,7 @@ cit_core <- function(family, L, G, T, E = NULL, CT = NULL, CG = NULL, robust = F
 run_cit <- function(family, d, robust, test4, maxit, n.resampl, perm, sign.pattern = FALSE, test3 = TRUE) {
   P <- ncol(perm); ok <- d$ok
   has3 <- family != "cox" || test3
+  si <- has3 && sign.pattern && ncol(d$L) == 1 && ncol(d$G) == 1   # sign check defined
   sub <- function(x, r) if (is.null(x)) NULL else x[r, , drop = FALSE]
   yv <- function(r) if (family == "cox") survival::Surv(d$T[r], d$E[r]) else d$T[r]
   AT <- function(r) {                                   # outcome-model base
@@ -102,8 +102,14 @@ run_cit <- function(family, d, robust, test4, maxit, n.resampl, perm, sign.patte
       p3 <- p3_v2(t3, t4_observed(s), t4_df(s))
     }
     p <- c(t1[["p"]], t2[["p"]], p3)
-    if (sign.pattern) p <- sign_pattern(p, c(t1[["sgn"]], t2[["sgn"]], t3[["sgn"]]), halve = !robust)
+    if (si) p <- sign_check(p, c(t1[["sgn"]], t2[["sgn"]], t3[["sgn"]]), halve = !robust)
     p
+  }
+
+  ins4 <- function(x, p4) if (si) c(x[1:3], p4, x[4]) else c(x, p4)
+  pmax_ind <- function(x) {                           # p_cit; sign_ind enters unless NA
+    if (!si) return(max(x))
+    k <- length(x); max(x[-k], if (!is.na(x[k])) x[k])
   }
 
   obs <- comp(d$L, ok$L, d$G, ok$G)
@@ -118,18 +124,18 @@ run_cit <- function(family, d, robust, test4, maxit, n.resampl, perm, sign.patte
   perm4 <- if (P > 0) restrict_perm(perm, r4) else matrix(integer(0), s4$n, 0)
   if (test4 == "empirical") {
     obs_perm <- if (P > 0) t4_stats(s4, perm4) else numeric(0)
-    res4 <- t4_empirical(s4, stat4, obs_perm, max(obs), maxit)
+    res4 <- t4_empirical(s4, stat4, obs_perm, pmax_ind(obs), maxit)
   } else {
     res4 <- t4_parametric(s4, stat4, perm4, n.resampl)
   }
 
-  out <- c(obs, res4$p)
-  nm <- if (has3) pnames[-1] else pnames[c(2, 3, 5)]
-  res <- c(max(out), out); names(res) <- c("p_cit", nm)
+  out <- ins4(obs, res4$p)
+  nm <- c(if (has3) pnames[-1] else pnames[c(2, 3, 5)], if (si) "sign_ind")
+  res <- c(pmax_ind(out), out); names(res) <- c("p_cit", nm)
   if (P == 0) return(as.data.frame(as.list(res)))     # one row, as cit.bp did in 2.3.2
 
-  pm <- cbind(do.call(rbind, pc), res4$p_perm)
-  pm <- cbind(apply(pm, 1, max), pm)
+  pm <- do.call(rbind, lapply(seq_len(P), function(j) ins4(pc[[j]], res4$p_perm[j])))
+  pm <- cbind(apply(pm, 1, pmax_ind), pm)
   df <- as.data.frame(rbind(res, pm), row.names = FALSE)
   names(df) <- names(res)
   cbind(perm = 0:P, df)
@@ -143,17 +149,13 @@ p3_v2 <- function(t3, stat4, df4) {
   pnc(t3[["stat"]], t3[["df1"]], t3[["df2"]], lam, lower.tail = FALSE)
 }
 
-## Sign-pattern components for tests 1-3. p: two-sided p-values; s: signs of the
-## estimates (T~L, T~G|L, G~L|T). The patterns (gamma, beta, theta) with
-## gamma = beta * theta are the four sign-consistent alternatives; in each, a
-## component's one-sided p-value is p/2 if its sign matches and 1 - p/2 if not
-## (halve = FALSE: p and 1). Returns the components of the pattern whose largest
-## component is smallest. Signs that are undefined (several instruments or
-## mediators, or an inestimable coefficient) leave p unchanged.
-sign_pattern <- function(p, s, halve = TRUE) {
-  if (anyNA(p) || anyNA(s) || any(s == 0)) return(p)
-  pats <- rbind(c(1, 1, 1), c(-1, 1, -1), c(-1, -1, 1), c(1, -1, -1))
-  one <- function(q) if (halve) ifelse(s == q, p / 2, 1 - p / 2) else ifelse(s == q, p, 1)
-  cand <- t(apply(pats, 1, one))
-  cand[which.min(apply(cand, 1, max)), ]
+## Sign check for tests 1-3. p: two-sided p-values; s: signs of the estimates
+## (T~L, T~G|L, G~L|T). Returns c(p1, p2, p3, sign_ind): the components, halved
+## (one-sided in the observed direction) unless halve = FALSE, and sign_ind = 0
+## if s[1] = s[2] * s[3], 1 if not. Signs that are undefined (an estimate of 0
+## or an inestimable coefficient) give the two-sided
+## p-values and sign_ind = NA. Not used with several instruments or mediators.
+sign_check <- function(p, s, halve = TRUE) {
+  if (anyNA(p) || anyNA(s) || any(s == 0)) return(c(p, NA_real_))
+  c(if (halve) p / 2 else p, as.numeric(s[1] != s[2] * s[3]))
 }
