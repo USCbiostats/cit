@@ -28,6 +28,8 @@
 
   The combination is justified under the two-groups model (Efron et al. 2001; Efron 2008), in which each hypothesis is null or non-null at random and its p-value is drawn given that status; under this model the positive FDR (pFDR) of a rejection region equals the probability that a hypothesis in the region is null (Storey 2003). Let \eqn{H = (H_1, \ldots, H_K)}{H = (H_1, ..., H_K)} be the null statuses of the K component hypotheses of a test. A CIT call is a false discovery when at least one component null holds (the composite null). Suppose (1) over the tests analysed together, the K component null statuses are mutually independent, and (2) given \eqn{H}, the component p-values are independent, with each \eqn{p_k} depending only on its own status \eqn{H_k}. Then \eqn{1 - \prod_k (1 - pFDR_k(u))}{1 - prod_k (1 - pFDR_k(u))} equals the pFDR of the call set \{p.cit.cal \eqn{\le u}{<= u}\}, and q.cit estimates the corresponding q-value consistently when the component estimates are consistent. These conditions concern how component null statuses co-occur among the tests analysed together, which depends on how those tests were selected, and they can fail. If many tests are null for one component and strongly non-null for the others, the omnibus q-value can understate the FDR; if tests under the composite null tend to be null for every component, it can overstate it.
 
+  \emph{Sign check.} Results of \code{\link{cit.cp}} or \code{\link{cit.bp}} with \code{sign.pattern = TRUE} carry the column \code{sign_ind}. It is applied to the observed tests only: a test whose signs disagree (\code{sign_ind} = 1) is not called and gets q.cit = 1, with confidence limits of 1, and p.cit.cal = 1. The permuted results and the component FDRs ignore \code{sign_ind}, so q.cit for the other tests is the q-value of the call set without the sign restriction. Tests whose signs disagree are not mediation calls, so removing them can only lower the proportion of false calls, and q.cit is conservative for the sign-restricted call set.
+
   It is important to be aware that there are certain conditions under which this permutation-based FDR is not stable. This includes the case where all observed tests achieve the significance level and the case where there are zero positive tests among the permuted results. In the latter case, we take the conservative approach of setting the number of positive permutation tests to one. Both these cases produce an NA for the upper confidence limit. The latter problem may be alleviated by increasing the number of permutations conducted.
 }
 \value{
@@ -49,7 +51,8 @@
   \item{q.ll.LiTgvG }{Lower 95 percent confidence limit (if cl=.95) for q.LiTgvG estimate}
   \item{q.ul.LiTgvG }{Upper 95 percent confidence limit (if cl=.95) for q.LiTgvG estimate}
   The component p-values are also returned, in columns named as in the input, followed by
-  \item{p.cit.cal }{calibrated omnibus value, the largest of the component p-values each mapped to its permutation null distribution function; tests are ranked by p.cit.cal for q.cit (see Details)}
+  \item{p.cit.cal }{calibrated omnibus value, the largest of the component p-values each mapped to its permutation null distribution function; tests are ranked by p.cit.cal for q.cit (see Details); 1 for a test with sign_ind = 1}
+  \item{sign_ind }{if present in the input: the sign check of each test (see Details)}
 }
 \references{
  Millstein J, Chen GK, Breton CV. 2016. cit: hypothesis testing software for mediation analysis in genomic applications. Bioinformatics. btw135. PMID: 27153715.

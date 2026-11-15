@@ -218,5 +218,15 @@ fdr.cit = function( cit.perm.list, cl=.95, c1=NA ){
 		fdrmat[ op[1:tst], "q.cit.ul" ] = ifelse( aa, fdrmat[ op[tst], "q.cit.ul" ], fdrmat[ op[1:tst], "q.cit.ul" ] )
 	}
 
+	# sign check (3.1.0): sign_ind restricts the rejection region of the observed tests only. A test
+	# whose signs disagree (sign_ind = 1) is not called; the permuted results and the component FDRs
+	# ignore sign_ind, so q.cit for the other tests is the q-value of the region without the sign
+	# restriction, an upper bound when sign-inconsistent tests are false discoveries.
+	if( "sign_ind" %in% names( obs ) ){
+		bad = obs[, "sign_ind" ] %in% 1
+		fdrmat[ bad, c("q.cit", "q.cit.ll", "q.cit.ul", "p.cit.cal") ] = 1
+		fdrmat[ , "sign_ind" ] = obs[, "sign_ind" ]
+	}
+
 	return( fdrmat )
 } # End fdr.cit

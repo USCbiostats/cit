@@ -1,8 +1,8 @@
 Package: cit
 Type: Package
 Title: Causal Inference Test
-Version: 3.0.0
-Date: 2026-10-18
+Version: 3.1.0
+Date: 2026-11-05
 Authors@R: c(
     person("Joshua", "Millstein", email = "joshua.millstein@usc.edu", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0001-7961-8943")),

@@ -1,3 +1,27 @@
+# cit 3.1.0
+
+## Changes in results
+
+* Sign check as its own column. With `sign.pattern = TRUE`, `cit.cp()` and `cit.bp()`
+  return `sign_ind` (single instrument and single mediator): 0 when the estimates in
+  tests 1-3 agree in sign, 1 when they do not, NA if an estimate is 0 or inestimable. It enters
+  `p_cit` with the component p-values, so a disagreement gives `p_cit = 1`. Tests 1-3
+  now always report their own p-values: one-sided in the direction of the estimates
+  (half the two-sided p-value), or two-sided with `robust = TRUE`. In 3.0.0 a sign
+  disagreement was marked by setting a component to 1 (with `robust = FALSE`, to
+  1 - p/2), and which component was chosen by a tie-break, so a 1 could not be told
+  apart from a test 3 p-value of 1 under `robust = TRUE`. With `robust = TRUE` a test 3
+  p-value that was numerically 1 also made the tie-break set other components to 1
+  when the signs agreed. Mediation calls are unchanged with `robust = TRUE`; with
+  `robust = FALSE`, `p_cit` for a sign disagreement is now 1 rather than a value in
+  [0.5, 1).
+
+* `fdr.cit()` applies `sign_ind` to the observed tests only: a test with
+  `sign_ind = 1` gets `q.cit = 1` and `p.cit.cal = 1`; permuted results and the
+  component FDRs ignore it. `sign_ind` is returned. q-values for the other tests are
+  those of the call set without the sign restriction, which is conservative for the
+  sign-restricted call set.
+
 # cit 3.0.0
 
 ## New features
